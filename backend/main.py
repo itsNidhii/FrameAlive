@@ -28,10 +28,11 @@ from fastapi.staticfiles import StaticFiles
 BASE_DIR = Path(__file__).resolve().parent.parent
 PUBLIC_DIR = BASE_DIR / "public"
 PUBLIC_FILES_DIR = PUBLIC_DIR / "files"
+SEED_FILE = BASE_DIR / "backend" / "experiences.json"
 
-# Use public/files if present (for Vercel build output), fallback to data/
+# Use public/files if present, fallback to data/
 DATA_DIR = PUBLIC_FILES_DIR if PUBLIC_FILES_DIR.exists() else (BASE_DIR / "data")
-FRONTEND_DIR = PUBLIC_DIR if (PUBLIC_DIR / "index.html").exists() else (BASE_DIR / "frontend")
+FRONTEND_DIR = (BASE_DIR / "public") if (BASE_DIR / "public" / "index.html").exists() else (BASE_DIR / "frontend")
 
 # Ephemeral fallback for serverless platforms with read-only filesystems (e.g., Vercel)
 TMP_DATA_DIR = Path("/tmp/data")
@@ -69,6 +70,19 @@ def get_all_experiences():
     """Retrieve all valid experiences sorted by creation time."""
     exps = []
     seen = set()
+
+    # 1. Load seed metadata if available (guarantees fast loading on serverless)
+    if SEED_FILE.exists():
+        try:
+            seeds = json.loads(SEED_FILE.read_text())
+            for item in seeds:
+                if item.get("id") and item["id"] not in seen:
+                    exps.append(item)
+                    seen.add(item["id"])
+        except Exception:
+            pass
+
+    # 2. Check disk /tmp and local data folders for any new experiences
     for d in [DATA_DIR, TMP_DATA_DIR]:
         if not d.exists():
             continue
@@ -76,14 +90,14 @@ def get_all_experiences():
             if not folder.is_dir() or folder.name.startswith("_") or folder.name in seen:
                 continue
             meta_file = folder / "meta.json"
-            mind_file = folder / "target.mind"
-            if meta_file.exists() and mind_file.exists():
+            if meta_file.exists():
                 try:
                     meta = json.loads(meta_file.read_text())
                     exps.append(meta)
                     seen.add(folder.name)
                 except Exception:
                     pass
+
     exps.sort(key=lambda x: x.get("created", 0))
     return exps
 
@@ -277,15 +291,39 @@ def get_all_targets():
 
 @app.api_route("/api/experiences/{exp_id}", methods=["GET", "HEAD"])
 def get_experience(exp_id: str):
-    folder = check_id(exp_id)
-    meta = json.loads((folder / "meta.json").read_text())
-    base = f"/files/{exp_id}"
-    return {
-        **meta,
-        "photo_url": f"{base}/{meta['photo']}",
-        "video_url": f"{base}/{meta['video']}",
-        "target_url": f"{base}/target.mind",
-    }
+    if not ID_RE.match(exp_id):
+        raise HTTPException(404, "Not found")
+
+    # Check filesystem first
+    for d in [DATA_DIR, TMP_DATA_DIR]:
+        meta_file = d / exp_id / "meta.json"
+        if meta_file.exists():
+            meta = json.loads(meta_file.read_text())
+            base = f"/files/{exp_id}"
+            return {
+                **meta,
+                "photo_url": f"{base}/{meta['photo']}",
+                "video_url": f"{base}/{meta['video']}",
+                "target_url": f"{base}/target.mind",
+            }
+
+    # Check seed file
+    if SEED_FILE.exists():
+        try:
+            seeds = json.loads(SEED_FILE.read_text())
+            for item in seeds:
+                if item.get("id") == exp_id:
+                    base = f"/files/{exp_id}"
+                    return {
+                        **item,
+                        "photo_url": f"{base}/{item['photo']}",
+                        "video_url": f"{base}/{item['video']}",
+                        "target_url": f"{base}/target.mind",
+                    }
+        except Exception:
+            pass
+
+    raise HTTPException(404, "Not found")
 
 
 @app.api_route("/files/{exp_id}/{filename}", methods=["GET", "HEAD"])
@@ -304,13 +342,18 @@ def serve_file(exp_id: str, filename: str):
 @app.api_route("/scan", methods=["GET", "HEAD"])
 def universal_scan_page():
     """Direct route for the camera scanner from homepage."""
-    return FileResponse(FRONTEND_DIR / "scan.html")
+    scan_file = FRONTEND_DIR / "scan.html"
+    if not scan_file.exists():
+        scan_file = BASE_DIR / "frontend" / "scan.html"
+    return FileResponse(scan_file)
 
 
 @app.api_route("/s/{exp_id}", methods=["GET", "HEAD"])
 def scan_page(exp_id: str):
-    check_id(exp_id)
-    return FileResponse(FRONTEND_DIR / "scan.html")
+    scan_file = FRONTEND_DIR / "scan.html"
+    if not scan_file.exists():
+        scan_file = BASE_DIR / "frontend" / "scan.html"
+    return FileResponse(scan_file)
 
 
 @app.get("/favicon.ico")
