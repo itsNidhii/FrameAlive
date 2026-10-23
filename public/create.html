@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create - LiveFrame</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <a class="logo" href="/">
+      <div class="logo-icon">▶</div>
+      Frame<span>Alive</span>
+    </a>
+    <div class="header-actions">
+      <a class="btn secondary" href="/scan" style="padding:10px 18px;font-size:14px">📷 Scan</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h1 style="font-size:32px">Create a live photo</h1>
+
+    <form id="form" class="card">
+      <label for="title">Name / Title (for identifying your photo)</label>
+      <input id="title" type="text" maxlength="80" placeholder="e.g. Birthday Card, Family Vacation">
+
+      <label for="photo">1. Photo (the image you will point your camera at)</label>
+      <input id="photo" type="file" accept="image/jpeg,image/png" required>
+      <div class="hint">Pick a photo with lots of detail and contrast. Plain walls or flat logos track badly.</div>
+      <img id="photoPreview" class="preview hidden" alt="">
+
+      <label for="video">2. Video (plays seamlessly on top of the photo)</label>
+      <input id="video" type="file" accept="video/*" required>
+      <div class="hint">Best if it matches the orientation (portrait/landscape) of the photo. Max 80 MB.</div>
+
+      <div id="passWrap" class="hidden">
+        <label for="pass">Passcode</label>
+        <input id="pass" type="password" autocomplete="off">
+      </div>
+
+      <div class="row">
+        <button id="go" class="btn" type="submit">Create Live Photo</button>
+      </div>
+
+      <progress id="bar" max="100" value="0" class="hidden"></progress>
+      <div id="status" class="msg hidden"></div>
+    </form>
+
+    <div id="done" class="card hidden">
+      <div style="color:var(--ok);font-size:18px;font-weight:700">✓ Created Successfully!</div>
+      <p style="margin-top:8px">This photo is now permanently linked. Anyone can open the camera scanner and point at it — no code required!</p>
+      
+      <div class="row" style="margin-top:16px">
+        <a class="btn" href="/scan">📷 Open Camera Scanner</a>
+        <button id="copy" class="btn secondary" type="button">Copy Direct Link</button>
+      </div>
+      <input id="link" type="text" readonly style="margin-top:12px;opacity:0.8">
+    </div>
+  </main>
+
+  <!-- Core MindAR (contains the image compiler). MIT licence.
+       The standalone mindar-image.prod.js is now an ES-module in 1.2.5,
+       so we use the A-Frame bundle which works as a classic script and
+       exposes window.MINDAR.IMAGE.Compiler. A-Frame must load first. -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const MAX_SIDE = 1024; // downscale photo: faster to learn, smaller to store
+
+    // Ask for a passcode only if the server wants one.
+    // (The server answers 401 on create when CREATE_PASSCODE is set.)
+    const savedPass = sessionStorage.getItem("passcode");
+    if (savedPass) { $("passWrap").classList.remove("hidden"); $("pass").value = savedPass; }
+
+    $("photo").addEventListener("change", () => {
+      const f = $("photo").files[0];
+      if (!f) return;
+      $("photoPreview").src = URL.createObjectURL(f);
+      $("photoPreview").classList.remove("hidden");
+    });
+
+    function show(text, cls) {
+      const el = $("status");
+      el.textContent = text;
+      el.className = "msg " + (cls || "");
+    }
+
+    function loadImage(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Could not read that photo"));
+        img.src = url;
+      });
+    }
+
+    // Shrink the photo and return {blob, img, w, h}
+    async function prepPhoto(file) {
+      const original = await loadImage(URL.createObjectURL(file));
+      const scale = Math.min(1, MAX_SIDE / Math.max(original.naturalWidth, original.naturalHeight));
+      const w = Math.round(original.naturalWidth * scale);
+      const h = Math.round(original.naturalHeight * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(original, 0, 0, w, h);
+      const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.9));
+      const img = await loadImage(URL.createObjectURL(blob));
+      return { blob, img, w, h };
+    }
+
+    function upload(formData, passcode) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/create");
+        if (passcode) xhr.setRequestHeader("X-Passcode", passcode);
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) $("bar").value = Math.round((e.loaded / e.total) * 100);
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) return resolve(JSON.parse(xhr.responseText));
+          let detail = "Upload failed";
+          try { detail = JSON.parse(xhr.responseText).detail || detail; } catch (_) {}
+          const err = new Error(detail); err.status = xhr.status; reject(err);
+        };
+        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.send(formData);
+      });
+    }
+
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const photoFile = $("photo").files[0];
+      const videoFile = $("video").files[0];
+      if (!photoFile || !videoFile) return;
+
+      $("go").disabled = true;
+      $("bar").classList.remove("hidden");
+      $("done").classList.add("hidden");
+
+      try {
+        show("Step 1/3: preparing photo...");
+        const { blob, img, w, h } = await prepPhoto(photoFile);
+
+        show("Step 2/3: teaching the browser to recognise your photo...");
+        $("bar").value = 0;
+        const compiler = new window.MINDAR.IMAGE.Compiler();
+        await compiler.compileImageTargets([img], (p) => { $("bar").value = Math.round(p); });
+        const mindBuffer = await compiler.exportData();
+
+        show("Step 3/3: uploading (video may take a while)...");
+        $("bar").value = 0;
+        const fd = new FormData();
+        fd.append("title", $("title").value || "Untitled");
+        fd.append("photo_w", String(w));
+        fd.append("photo_h", String(h));
+        fd.append("photo", blob, "photo.jpg");
+        fd.append("target", new Blob([mindBuffer]), "target.mind");
+        fd.append("video", videoFile, videoFile.name);
+
+        let result;
+        try {
+          result = await upload(fd, $("pass").value);
+        } catch (err) {
+          if (err.status === 401) {
+            $("passWrap").classList.remove("hidden");
+            throw new Error("This server needs a passcode. Type it above and press Create again.");
+          }
+          throw err;
+        }
+        if ($("pass").value) sessionStorage.setItem("passcode", $("pass").value);
+
+        const url = location.origin + result.scan_url;
+        $("link").value = url;
+        $("open").href = result.scan_url;
+        $("done").classList.remove("hidden");
+        show("Created.", "ok");
+      } catch (err) {
+        console.error(err);
+        show(err.message || "Something went wrong", "err");
+      } finally {
+        $("go").disabled = false;
+      }
+    });
+
+    $("copy").addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText($("link").value); $("copy").textContent = "Copied!"; }
+      catch (_) { $("link").select(); }
+    });
+  </script>
+</body>
+</html>

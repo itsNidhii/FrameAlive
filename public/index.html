@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FrameAlive - Bring Photos to Life with AR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(255, 106, 61, 0.12);
+      border: 1px solid rgba(255, 106, 61, 0.3);
+      color: #ff9d75;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .cta-group {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin: 28px 0 10px;
+    }
+    .cta-btn-main {
+      padding: 16px 32px;
+      font-size: 18px;
+      border-radius: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="logo" href="/">
+      <div class="logo-icon">▶</div>
+      Frame<span>Alive</span>
+    </a>
+    <div class="header-actions">
+      <a class="btn" href="/scan" style="padding:10px 18px;font-size:14px">📷 Scan</a>
+      <a class="btn secondary" href="/create.html" style="padding:10px 18px;font-size:14px">+ Create</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero-badge">WebAR Photo Scanner</div>
+    <h1>Point your phone camera at a photo.<br>Watch it come alive.</h1>
+    <p class="lead">
+      No app required. No QR codes needed. Just open the camera and point it at any photo you've linked — the video locks directly on top.
+    </p>
+
+    <div class="cta-group">
+      <a class="btn cta-btn-main" href="/scan">
+        📷 Open Camera Scanner
+      </a>
+      <a class="btn secondary cta-btn-main" href="/create.html">
+        ✨ Create New Photo
+      </a>
+    </div>
+
+    <!-- Active Gallery Section -->
+    <div class="card" id="gallerySection" style="margin-top:36px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="margin:0;font-size:20px">Registered Photos</h2>
+          <p class="hint" style="margin:2px 0 0">Any of these photos will immediately trigger its video in the camera scanner.</p>
+        </div>
+        <span id="galleryCount" style="color:var(--accent-2);font-weight:700;font-size:14px">Loading...</span>
+      </div>
+      <div id="galleryGrid" class="gallery-grid"></div>
+    </div>
+
+    <!-- How It Works -->
+    <div class="card" style="margin-top:28px">
+      <h2 style="margin:0 0 16px;font-size:20px">How It Works</h2>
+      <ol class="steps">
+        <li>
+          <div>
+            <b>Create:</b> Upload your photo and the video you want it to play.
+          </div>
+        </li>
+        <li>
+          <div>
+            <b>Print or Display:</b> Print the photo, put it on a frame, or display it on any screen.
+          </div>
+        </li>
+        <li>
+          <div>
+            <b>Scan:</b> Tap <b>"Open Camera Scanner"</b> on your phone, point at the photo, and watch it play!
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Optional Code Form (Collapsed Helper) -->
+    <details style="margin-top:20px;padding:12px;color:var(--text-muted);font-size:14px;">
+      <summary style="cursor:pointer;font-weight:600">Have a specific 8-digit photo code? (Optional)</summary>
+      <form id="codeForm" class="row" style="margin-top:12px">
+        <input id="code" type="text" placeholder="e.g. 8dc67749" maxlength="8" style="flex:1" autocomplete="off">
+        <button class="btn secondary" type="submit">Open Link</button>
+      </form>
+    </details>
+  </main>
+
+  <script>
+    // Load registered experiences and render preview gallery
+    async function loadGallery() {
+      try {
+        const res = await fetch("/api/experiences");
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const exps = data.experiences || [];
+        const countEl = document.getElementById("galleryCount");
+        const grid = document.getElementById("galleryGrid");
+
+        countEl.textContent = `${exps.length} Ready to scan`;
+
+        if (exps.length === 0) {
+          grid.innerHTML = `
+            <div style="grid-column:1/-1;text-align:center;padding:24px 0;color:var(--text-muted)">
+              No photos created yet. <a href="/create.html" style="color:var(--accent-2)">Create your first one!</a>
+            </div>
+          `;
+          return;
+        }
+
+        grid.innerHTML = exps.map(exp => `
+          <div class="gallery-card">
+            <img class="gallery-thumb" src="${exp.photo_url}" alt="${exp.title}" loading="lazy">
+            <div class="gallery-title">${exp.title || "Untitled"}</div>
+            <a class="btn secondary" href="/scan" style="padding:8px 12px;font-size:13px;width:100%;justify-content:center">
+              Scan This
+            </a>
+          </div>
+        `).join("");
+      } catch (e) {
+        console.error(e);
+        document.getElementById("galleryCount").textContent = "";
+      }
+    }
+
+    loadGallery();
+
+    document.getElementById("codeForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const code = document.getElementById("code").value.trim().toLowerCase();
+      if (/^[a-f0-9]{8}$/.test(code)) {
+        location.href = "/s/" + code;
+      } else {
+        alert("Please enter a valid 8-character code (e.g. 8dc67749)");
+      }
+    });
+  </script>
+</body>
+</html>

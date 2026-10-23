@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/scan", "destination": "/scan.html" },
+    { "source": "/create", "destination": "/create.html" },
+    { "source": "/s/:id", "destination": "/scan.html" },
+    { "source": "/api/all_targets.mind", "destination": "/files/_all_targets.mind" }
+  ]
+}
