@@ -3,158 +3,316 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FrameAlive - Bring Photos to Life with AR</title>
+  <title>PicsAlive — Your Memories, Beyond the Picture</title>
+  <meta name="description" content="Connect physical photographs with living video memories. Scan your favorite printed photos and watch them come alive with sound and motion.">
+
+  <!-- Open Graph / SEO -->
+  <meta property="og:title" content="PicsAlive — Your Memories, Beyond the Picture">
+  <meta property="og:description" content="Turn physical photographs into living, breathing memories with video playback.">
+  <meta property="og:type" content="website">
+
+  <!-- Fonts & Stylesheet -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
-  <style>
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 14px;
-      border-radius: 999px;
-      background: rgba(255, 106, 61, 0.12);
-      border: 1px solid rgba(255, 106, 61, 0.3);
-      color: #ff9d75;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-    .cta-group {
-      display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
-      margin: 28px 0 10px;
-    }
-    .cta-btn-main {
-      padding: 16px 32px;
-      font-size: 18px;
-      border-radius: 14px;
-    }
-  </style>
 </head>
 <body>
-  <header class="top">
-    <a class="logo" href="/">
-      <div class="logo-icon">▶</div>
-      Frame<span>Alive</span>
-    </a>
-    <div class="header-actions">
-      <a class="btn" href="/scan" style="padding:10px 18px;font-size:14px">📷 Scan</a>
-      <a class="btn secondary" href="/create.html" style="padding:10px 18px;font-size:14px">+ Create</a>
+
+  <!-- Navigation Bar -->
+  <header class="nav" id="topNav">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/" aria-label="PicsAlive Home">
+        <span class="nav__logo-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+          </svg>
+        </span>
+        Pics<span>Alive</span>
+      </a>
+
+      <nav class="nav__links" id="navLinks">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#memories">Memories</a>
+        <a href="#demo">Demo</a>
+        <a href="#about">Our Story</a>
+      </nav>
+
+      <div class="nav__actions" id="navActions">
+        <a class="nav__signin" href="/signin.html" id="navSignInLink">Sign In</a>
+        <a class="btn btn--primary btn--sm" href="/signup.html" id="navCtaLink">Get Started</a>
+      </div>
+
+      <!-- Mobile Hamburger Toggle -->
+      <button class="nav__toggle" id="menuToggle" aria-label="Toggle navigation menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Dropdown -->
+    <div class="nav__mobile" id="mobileMenu">
+      <a href="#how-it-works" class="mobile-nav-link">How It Works</a>
+      <a href="#memories" class="mobile-nav-link">Memories</a>
+      <a href="#demo" class="mobile-nav-link">Demo</a>
+      <a href="#about" class="mobile-nav-link">Our Story</a>
+      <hr style="border: none; border-top: 1px solid var(--border-light); margin: 8px 0;">
+      <a href="/signin.html">Sign In</a>
+      <a href="/signup.html" class="btn btn--primary" style="text-align: center; color: #fff;">Get Started</a>
     </div>
   </header>
 
-  <main class="wrap">
-    <div class="hero-badge">WebAR Photo Scanner</div>
-    <h1>Point your phone camera at a photo.<br>Watch it come alive.</h1>
-    <p class="lead">
-      No app required. No QR codes needed. Just open the camera and point it at any photo you've linked — the video locks directly on top.
-    </p>
+  <!-- Hero Section -->
+  <section class="hero section--ivory">
+    <div class="container hero__inner">
+      <div class="hero__content">
+        <span class="label label--burgundy">Interactive Photography</span>
+        <h1 class="hero__title">
+          Your memories,
+          <em>beyond the picture.</em>
+        </h1>
+        <p class="hero__subtitle">
+          PicsAlive connects printed photographs with the videos behind them. Point your camera at any registered framed photo and watch the moment return to life with sound, motion, and emotion.
+        </p>
 
-    <div class="cta-group">
-      <a class="btn cta-btn-main" href="/scan">
-        📷 Open Camera Scanner
-      </a>
-      <a class="btn secondary cta-btn-main" href="/create.html">
-        ✨ Create New Photo
-      </a>
-    </div>
-
-    <!-- Active Gallery Section -->
-    <div class="card" id="gallerySection" style="margin-top:36px">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div>
-          <h2 style="margin:0;font-size:20px">Registered Photos</h2>
-          <p class="hint" style="margin:2px 0 0">Any of these photos will immediately trigger its video in the camera scanner.</p>
+        <div class="hero__buttons">
+          <a class="btn btn--primary btn--lg" href="/signup.html">Get Started</a>
+          <a class="btn btn--secondary btn--lg" href="#how-it-works">How It Works</a>
         </div>
-        <span id="galleryCount" style="color:var(--accent-2);font-weight:700;font-size:14px">Loading...</span>
-      </div>
-      <div id="galleryGrid" class="gallery-grid"></div>
-    </div>
 
-    <!-- How It Works -->
-    <div class="card" style="margin-top:28px">
-      <h2 style="margin:0 0 16px;font-size:20px">How It Works</h2>
+        <div class="hero__tagline">
+          The story behind every frame
+        </div>
+      </div>
+
+      <div class="hero__image">
+        <img src="/images/hero-frame.jpg" alt="A framed photograph coming alive through mobile phone recognition" width="520" height="520">
+      </div>
+    </div>
+  </section>
+
+  <!-- Memory Showcase -->
+  <section class="section section--cream memories" id="memories">
+    <div class="container">
+      <span class="label">Living Archives</span>
+      <h2 class="memories__title">
+        Cherished moments, <em>preserved forever</em>
+      </h2>
+
+      <div class="memories__grid">
+        <div class="memory-card">
+          <img class="memory-card__image" src="/images/memory-family.jpg" alt="Family laughter and warm sunlight" loading="lazy">
+          <h3 class="memory-card__title">Family Traditions</h3>
+          <p class="memory-card__desc">Sunday mornings, celebrations, and timeless generations.</p>
+        </div>
+
+        <div class="memory-card">
+          <img class="memory-card__image" src="/images/memory-wedding.jpg" alt="Wedding couple embracing" loading="lazy">
+          <h3 class="memory-card__title">Weddings & Love</h3>
+          <p class="memory-card__desc">The vows, the first dance, and promises whispered in joy.</p>
+        </div>
+
+        <div class="memory-card">
+          <img class="memory-card__image" src="/images/memory-travel.jpg" alt="Travel adventure at sunset" loading="lazy">
+          <h3 class="memory-card__title">Travel & Adventures</h3>
+          <p class="memory-card__desc">Mountain sunrises and coastlines you explored together.</p>
+        </div>
+
+        <div class="memory-card">
+          <img class="memory-card__image" src="/images/memory-everyday.jpg" alt="Friends laughing over coffee" loading="lazy">
+          <h3 class="memory-card__title">Everyday Magic</h3>
+          <p class="memory-card__desc">Quiet coffees, shared laughs, and the small days that meant everything.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="section section--ivory how-it-works" id="how-it-works">
+    <div class="container">
+      <h2 class="how-it-works__title">How It Works</h2>
+      <p class="how-it-works__subtitle">Five simple steps from printed photo to living memory</p>
+
       <ol class="steps">
-        <li>
-          <div>
-            <b>Create:</b> Upload your photo and the video you want it to play.
-          </div>
+        <li class="step">
+          <div class="step__number">1</div>
+          <div class="step__icon">📷</div>
+          <h3 class="step__title">Choose a Photo</h3>
+          <p class="step__desc">Select a meaningful photograph from your album, frame, or phone.</p>
         </li>
-        <li>
-          <div>
-            <b>Print or Display:</b> Print the photo, put it on a frame, or display it on any screen.
-          </div>
+
+        <li class="step">
+          <div class="step__number">2</div>
+          <div class="step__icon">🎞️</div>
+          <h3 class="step__title">Add the Video</h3>
+          <p class="step__desc">Upload the real video clip captured during that very moment.</p>
         </li>
-        <li>
-          <div>
-            <b>Scan:</b> Tap <b>"Open Camera Scanner"</b> on your phone, point at the photo, and watch it play!
-          </div>
+
+        <li class="step">
+          <div class="step__number">3</div>
+          <div class="step__icon">🔒</div>
+          <h3 class="step__title">Register to Account</h3>
+          <p class="step__desc">Save it to your private PicsAlive library, visible only to you.</p>
+        </li>
+
+        <li class="step">
+          <div class="step__number">4</div>
+          <div class="step__icon">✨</div>
+          <h3 class="step__title">Scan & Relive</h3>
+          <p class="step__desc">Open the camera, point at your photo, and enjoy immersive video playback.</p>
         </li>
       </ol>
     </div>
+  </section>
 
-    <!-- Optional Code Form (Collapsed Helper) -->
-    <details style="margin-top:20px;padding:12px;color:var(--text-muted);font-size:14px;">
-      <summary style="cursor:pointer;font-weight:600">Have a specific 8-digit photo code? (Optional)</summary>
-      <form id="codeForm" class="row" style="margin-top:12px">
-        <input id="code" type="text" placeholder="e.g. 8dc67749" maxlength="8" style="flex:1" autocomplete="off">
-        <button class="btn secondary" type="submit">Open Link</button>
-      </form>
-    </details>
-  </main>
+  <!-- Configurable YouTube Demonstration Video Section -->
+  <section class="section section--blue demo" id="demo">
+    <div class="container demo__inner">
+      <div class="demo__content">
+        <span class="label label--burgundy">Experience In Motion</span>
+        <h2 class="demo__title">See PicsAlive in action.</h2>
+        <p class="demo__desc">
+          Watch how effortlessly a static printed frame turns into a full-screen, vibrant video memory the instant you point your phone at it. No app download required.
+        </p>
+
+        <a class="demo__play-btn" href="/scan.html">
+          <span class="demo__play-icon">▶</span>
+          <span>Try Camera Scanner Now</span>
+        </a>
+      </div>
+
+      <div class="demo__video-wrap" id="demoVideoContainer">
+        <!-- Embedded responsive YouTube player injected via script below -->
+        <iframe
+          id="demoIframe"
+          src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1"
+          title="PicsAlive Demo"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </div>
+  </section>
+
+  <!-- Emotional Brand Section -->
+  <section class="section section--cream emotional" id="about">
+    <div class="container emotional__inner">
+      <div class="emotional__content">
+        <span class="label">Why PicsAlive</span>
+        <h2 class="emotional__title">
+          A photograph holds a moment.
+          <em>A memory holds the feeling.</em>
+        </h2>
+        <p class="emotional__desc" style="margin-bottom: 16px;">
+          We print photographs because we want our loved ones and milestones on our desks, bedside tables, and gallery walls. But static prints cannot preserve the sound of a loved one's voice, the laughter during a wedding toast, or the ocean breeze of a seaside trip.
+        </p>
+        <p class="emotional__desc">
+          PicsAlive bridges the tactile comfort of physical prints with the emotional depth of video. Your private moments remain securely yours, ready to be relived whenever you look at them.
+        </p>
+      </div>
+
+      <div class="emotional__image">
+        <img src="/images/emotional-collage.jpg" alt="Artistic flat lay of scattered memory prints and warm ribbons" loading="lazy">
+      </div>
+    </div>
+  </section>
+
+  <!-- Final Call to Action -->
+  <section class="cta-section section--dark">
+    <div class="container">
+      <div class="cta-section__content">
+        <span class="label" style="color: var(--powder-blue);">Start Your Collection</span>
+        <h2 class="cta-section__title">
+          Ready to bring your memories to life?
+        </h2>
+        <p class="cta-section__desc">
+          Join PicsAlive today. Register your first photograph in minutes and experience the magic of pictures that move.
+        </p>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+          <a class="btn btn--primary btn--lg" href="/signup.html">Get Started — It's Free</a>
+          <a class="btn btn--outline-dark btn--lg" href="/signin.html">Sign In</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+        </svg>
+        PicsAlive
+      </div>
+
+      <p class="footer__text">
+        © 2026 PicsAlive. Your memories, beyond the picture.
+      </p>
+
+      <ul class="footer__links">
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#memories">Memories</a></li>
+        <li><a href="/signin.html">Sign In</a></li>
+        <li><a href="/signup.html">Sign Up</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <!-- Firebase & Client Modules -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="/js/firebase-config.js"></script>
+  <script src="/js/auth.js"></script>
 
   <script>
-    // Load registered experiences and render preview gallery
-    async function loadGallery() {
-      try {
-        const res = await fetch("/api/experiences");
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        const exps = data.experiences || [];
-        const countEl = document.getElementById("galleryCount");
-        const grid = document.getElementById("galleryGrid");
+    /**
+     * CONFIGURABLE DEMO VIDEO URL:
+     * Change this YouTube URL to any video you wish to feature on the homepage.
+     */
+    const PICSALIVE_DEMO_YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
-        countEl.textContent = `${exps.length} Ready to scan`;
-
-        if (exps.length === 0) {
-          grid.innerHTML = `
-            <div style="grid-column:1/-1;text-align:center;padding:24px 0;color:var(--text-muted)">
-              No photos created yet. <a href="/create.html" style="color:var(--accent-2)">Create your first one!</a>
-            </div>
-          `;
-          return;
-        }
-
-        grid.innerHTML = exps.map(exp => `
-          <div class="gallery-card">
-            <img class="gallery-thumb" src="${exp.photo_url}" alt="${exp.title}" loading="lazy">
-            <div class="gallery-title">${exp.title || "Untitled"}</div>
-            <a class="btn secondary" href="/scan" style="padding:8px 12px;font-size:13px;width:100%;justify-content:center">
-              Scan This
-            </a>
-          </div>
-        `).join("");
-      } catch (e) {
-        console.error(e);
-        document.getElementById("galleryCount").textContent = "";
-      }
+    // Setup YouTube embed helper
+    function getYouTubeEmbedUrl(url) {
+      if (!url) return '';
+      const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+      return match ? `https://www.youtube-nocookie.com/embed/${match[1]}?rel=0&modestbranding=1` : url;
     }
 
-    loadGallery();
+    const iframe = document.getElementById('demoIframe');
+    if (iframe && PICSALIVE_DEMO_YOUTUBE_URL) {
+      iframe.src = getYouTubeEmbedUrl(PICSALIVE_DEMO_YOUTUBE_URL);
+    }
 
-    document.getElementById("codeForm").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const code = document.getElementById("code").value.trim().toLowerCase();
-      if (/^[a-f0-9]{8}$/.test(code)) {
-        location.href = "/s/" + code;
-      } else {
-        alert("Please enter a valid 8-character code (e.g. 8dc67749)");
+    // Mobile menu toggle
+    const menuToggle = document.getElementById('menuToggle');
+    const mobileMenu = document.getElementById('mobileMenu');
+    if (menuToggle && mobileMenu) {
+      menuToggle.addEventListener('click', () => {
+        mobileMenu.classList.toggle('active');
+      });
+      document.querySelectorAll('.mobile-nav-link').forEach(link => {
+        link.addEventListener('click', () => mobileMenu.classList.remove('active'));
+      });
+    }
+
+    // Dynamic auth state for navigation
+    Auth.waitForUser().then(user => {
+      if (user) {
+        const signinLink = document.getElementById('navSignInLink');
+        const ctaLink = document.getElementById('navCtaLink');
+        if (signinLink) {
+          signinLink.textContent = 'Dashboard';
+          signinLink.href = '/dashboard.html';
+        }
+        if (ctaLink) {
+          ctaLink.textContent = 'My Memories';
+          ctaLink.href = '/dashboard.html';
+        }
       }
     });
   </script>

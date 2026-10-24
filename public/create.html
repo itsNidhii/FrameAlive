@@ -3,189 +3,240 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Create - LiveFrame</title>
+  <title>Register a Photograph — PicsAlive</title>
+  <meta name="description" content="Connect a printed photograph with a video in your personal PicsAlive collection.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
-<body>
-  <header class="top">
-    <a class="logo" href="/">
-      <div class="logo-icon">▶</div>
-      Frame<span>Alive</span>
-    </a>
-    <div class="header-actions">
-      <a class="btn secondary" href="/scan" style="padding:10px 18px;font-size:14px">📷 Scan</a>
+<body class="create-page">
+
+  <!-- Top Navigation -->
+  <header class="nav" style="background: var(--white); border-bottom: 1px solid var(--border-light);">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/">
+        <span class="nav__logo-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+          </svg>
+        </span>
+        Pics<span>Alive</span>
+      </a>
+
+      <div class="nav__actions" style="display: flex; align-items: center; gap: 12px;">
+        <a class="btn btn--secondary btn--sm" href="/dashboard.html">
+          ← Back to Dashboard
+        </a>
+      </div>
     </div>
   </header>
 
-  <main class="wrap">
-    <h1 style="font-size:32px">Create a live photo</h1>
+  <!-- Create Form Container -->
+  <main class="container" style="padding-top: 40px; padding-bottom: 80px;">
+    <div class="create-card">
+      <span class="label label--burgundy">Interactive Memory</span>
+      <h1 class="create-card__title">Register a Photograph</h1>
+      <p class="create-card__subtitle">
+        Link a printed photograph with its video memory. Only you will be able to scan and relive it.
+      </p>
 
-    <form id="form" class="card">
-      <label for="title">Name / Title (for identifying your photo)</label>
-      <input id="title" type="text" maxlength="80" placeholder="e.g. Birthday Card, Family Vacation">
+      <form id="createForm" novalidate>
+        <!-- Title Input -->
+        <div class="form-group">
+          <label class="form-label" for="title">Photograph Title / Occasion</label>
+          <input class="form-input" id="title" type="text" maxlength="80" placeholder="e.g., Mom's 60th Birthday, Trip to Kyoto" required>
+          <div class="form-hint">A meaningful name to identify this memory in your collection.</div>
+        </div>
 
-      <label for="photo">1. Photo (the image you will point your camera at)</label>
-      <input id="photo" type="file" accept="image/jpeg,image/png" required>
-      <div class="hint">Pick a photo with lots of detail and contrast. Plain walls or flat logos track badly.</div>
-      <img id="photoPreview" class="preview hidden" alt="">
+        <!-- Photo Input -->
+        <div class="form-group">
+          <label class="form-label" for="photo">1. Printed Photograph (Image)</label>
+          <input class="form-input" id="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
+          <div class="form-hint">Choose a photo with clear details, textures, and good contrast. Avoid blurry images.</div>
+          <img id="photoPreview" class="preview-image" style="display: none;" alt="Selected photograph preview">
+        </div>
 
-      <label for="video">2. Video (plays seamlessly on top of the photo)</label>
-      <input id="video" type="file" accept="video/*" required>
-      <div class="hint">Best if it matches the orientation (portrait/landscape) of the photo. Max 80 MB.</div>
+        <!-- Video Input -->
+        <div class="form-group">
+          <label class="form-label" for="video">2. Memory Video (Video Clip)</label>
+          <input class="form-input" id="video" type="file" accept="video/mp4,video/quicktime,video/webm" required>
+          <div class="form-hint">The video that will play when your camera scans this photo. Up to 100 MB.</div>
+        </div>
 
-      <div id="passWrap" class="hidden">
-        <label for="pass">Passcode</label>
-        <input id="pass" type="password" autocomplete="off">
+        <!-- Submit Button -->
+        <button id="submitBtn" class="btn btn--primary btn--lg" type="submit" style="width: 100%; justify-content: center; margin-top: 16px;">
+          Register to My Memories
+        </button>
+
+        <!-- Progress Indicator -->
+        <div id="progressWrap" style="display: none; margin-top: 24px;">
+          <div id="statusText" style="font-size: 14px; font-weight: 600; color: var(--burgundy); margin-bottom: 8px;"></div>
+          <progress id="progressBar" class="progress-bar" max="100" value="0"></progress>
+        </div>
+
+        <!-- Status Message -->
+        <div id="statusAlert" class="status-msg" style="display: none;"></div>
+      </form>
+
+      <!-- Success Screen -->
+      <div id="successCard" style="display: none; margin-top: 28px; padding: 24px; border-radius: var(--radius-lg); background: var(--success-bg); border: 1px solid rgba(45, 143, 95, 0.25);">
+        <div style="font-family: var(--font-serif); font-size: 20px; font-weight: 700; color: var(--success); margin-bottom: 8px;">
+          ✓ Memory Successfully Registered!
+        </div>
+        <p style="font-size: 14px; color: var(--text-body); line-height: 1.6; margin-bottom: 20px;">
+          Your photograph has been registered and learned by the camera scanner. You can now point your phone at the printed picture anytime to watch it come alive.
+        </p>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <a class="btn btn--primary" href="/scan.html">📷 Test Camera Scanner</a>
+          <a class="btn btn--secondary" href="/dashboard.html">View My Memories</a>
+        </div>
       </div>
-
-      <div class="row">
-        <button id="go" class="btn" type="submit">Create Live Photo</button>
-      </div>
-
-      <progress id="bar" max="100" value="0" class="hidden"></progress>
-      <div id="status" class="msg hidden"></div>
-    </form>
-
-    <div id="done" class="card hidden">
-      <div style="color:var(--ok);font-size:18px;font-weight:700">✓ Created Successfully!</div>
-      <p style="margin-top:8px">This photo is now permanently linked. Anyone can open the camera scanner and point at it — no code required!</p>
-      
-      <div class="row" style="margin-top:16px">
-        <a class="btn" href="/scan">📷 Open Camera Scanner</a>
-        <button id="copy" class="btn secondary" type="button">Copy Direct Link</button>
-      </div>
-      <input id="link" type="text" readonly style="margin-top:12px;opacity:0.8">
     </div>
   </main>
 
-  <!-- Core MindAR (contains the image compiler). MIT licence.
-       The standalone mindar-image.prod.js is now an ES-module in 1.2.5,
-       so we use the A-Frame bundle which works as a classic script and
-       exposes window.MINDAR.IMAGE.Compiler. A-Frame must load first. -->
+  <!-- MindAR & A-Frame for in-browser feature compilation -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <!-- Firebase & App SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+  <script src="/js/firebase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/db.js"></script>
+
   <script>
-    const $ = (id) => document.getElementById(id);
-    const MAX_SIDE = 1024; // downscale photo: faster to learn, smaller to store
+    const MAX_SIDE = 1024;
+    let currentUser = null;
 
-    // Ask for a passcode only if the server wants one.
-    // (The server answers 401 on create when CREATE_PASSCODE is set.)
-    const savedPass = sessionStorage.getItem("passcode");
-    if (savedPass) { $("passWrap").classList.remove("hidden"); $("pass").value = savedPass; }
-
-    $("photo").addEventListener("change", () => {
-      const f = $("photo").files[0];
-      if (!f) return;
-      $("photoPreview").src = URL.createObjectURL(f);
-      $("photoPreview").classList.remove("hidden");
+    // Guard: user must be authenticated
+    Auth.requireAuth().then(user => {
+      currentUser = user;
     });
 
-    function show(text, cls) {
-      const el = $("status");
-      el.textContent = text;
-      el.className = "msg " + (cls || "");
+    const photoInput = document.getElementById('photo');
+    const photoPreview = document.getElementById('photoPreview');
+    const videoInput = document.getElementById('video');
+    const titleInput = document.getElementById('title');
+    const form = document.getElementById('createForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressBar = document.getElementById('progressBar');
+    const statusText = document.getElementById('statusText');
+    const statusAlert = document.getElementById('statusAlert');
+    const successCard = document.getElementById('successCard');
+
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files[0];
+      if (!file) return;
+      photoPreview.src = URL.createObjectURL(file);
+      photoPreview.style.display = 'block';
+    });
+
+    function setStatus(text, progressVal) {
+      progressWrap.style.display = 'block';
+      statusText.textContent = text;
+      if (progressVal !== undefined) {
+        progressBar.value = progressVal;
+      }
+    }
+
+    function showAlert(text, isError = true) {
+      statusAlert.textContent = text;
+      statusAlert.style.display = 'block';
+      statusAlert.style.color = isError ? 'var(--error)' : 'var(--success)';
+      statusAlert.style.background = isError ? 'var(--error-bg)' : 'var(--success-bg)';
+      statusAlert.style.border = isError ? '1px solid rgba(201, 68, 68, 0.2)' : '1px solid rgba(45, 143, 95, 0.2)';
     }
 
     function loadImage(url) {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error("Could not read that photo"));
+        img.onerror = () => reject(new Error('Could not read that photo. Please try another image.'));
         img.src = url;
       });
     }
 
-    // Shrink the photo and return {blob, img, w, h}
     async function prepPhoto(file) {
       const original = await loadImage(URL.createObjectURL(file));
       const scale = Math.min(1, MAX_SIDE / Math.max(original.naturalWidth, original.naturalHeight));
       const w = Math.round(original.naturalWidth * scale);
       const h = Math.round(original.naturalHeight * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      canvas.getContext("2d").drawImage(original, 0, 0, w, h);
-      const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.9));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(original, 0, 0, w, h);
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
       const img = await loadImage(URL.createObjectURL(blob));
       return { blob, img, w, h };
     }
 
-    function upload(formData, passcode) {
-      return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/api/create");
-        if (passcode) xhr.setRequestHeader("X-Passcode", passcode);
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) $("bar").value = Math.round((e.loaded / e.total) * 100);
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) return resolve(JSON.parse(xhr.responseText));
-          let detail = "Upload failed";
-          try { detail = JSON.parse(xhr.responseText).detail || detail; } catch (_) {}
-          const err = new Error(detail); err.status = xhr.status; reject(err);
-        };
-        xhr.onerror = () => reject(new Error("Network error"));
-        xhr.send(formData);
-      });
-    }
-
-    $("form").addEventListener("submit", async (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const photoFile = $("photo").files[0];
-      const videoFile = $("video").files[0];
-      if (!photoFile || !videoFile) return;
+      statusAlert.style.display = 'none';
 
-      $("go").disabled = true;
-      $("bar").classList.remove("hidden");
-      $("done").classList.add("hidden");
+      const photoFile = photoInput.files[0];
+      const videoFile = videoInput.files[0];
+      const title = titleInput.value.trim() || 'Untitled Memory';
+
+      if (!photoFile) return showAlert('Please select a photograph.');
+      if (!videoFile) return showAlert('Please select a video file.');
+
+      submitBtn.disabled = true;
 
       try {
-        show("Step 1/3: preparing photo...");
+        // Step 1: Prepare and optimize image
+        setStatus('Step 1 of 3: Optimizing photograph...', 15);
         const { blob, img, w, h } = await prepPhoto(photoFile);
 
-        show("Step 2/3: teaching the browser to recognise your photo...");
-        $("bar").value = 0;
+        // Step 2: Compile AR target features in browser
+        setStatus('Step 2 of 3: Learning visual features of photograph...', 35);
         const compiler = new window.MINDAR.IMAGE.Compiler();
-        await compiler.compileImageTargets([img], (p) => { $("bar").value = Math.round(p); });
-        const mindBuffer = await compiler.exportData();
+        await compiler.compileImageTargets([img], (pct) => {
+          setStatus(`Step 2 of 3: Learning visual features (${Math.round(pct)}%)...`, 35 + Math.round(pct * 0.3));
+        });
+        const targetBuffer = await compiler.exportData();
 
-        show("Step 3/3: uploading (video may take a while)...");
-        $("bar").value = 0;
-        const fd = new FormData();
-        fd.append("title", $("title").value || "Untitled");
-        fd.append("photo_w", String(w));
-        fd.append("photo_h", String(h));
-        fd.append("photo", blob, "photo.jpg");
-        fd.append("target", new Blob([mindBuffer]), "target.mind");
-        fd.append("video", videoFile, videoFile.name);
-
-        let result;
-        try {
-          result = await upload(fd, $("pass").value);
-        } catch (err) {
-          if (err.status === 401) {
-            $("passWrap").classList.remove("hidden");
-            throw new Error("This server needs a passcode. Type it above and press Create again.");
+        // Step 3: Save to user's private library
+        setStatus('Step 3 of 3: Securely saving to your personal account...', 70);
+        await DB.createMemory(
+          currentUser.uid,
+          { title, photoW: w, photoH: h },
+          blob,
+          videoFile,
+          targetBuffer,
+          (pct) => {
+            setStatus(`Step 3 of 3: Uploading files (${pct}%)...`, 70 + Math.round(pct * 0.3));
           }
-          throw err;
-        }
-        if ($("pass").value) sessionStorage.setItem("passcode", $("pass").value);
+        );
 
-        const url = location.origin + result.scan_url;
-        $("link").value = url;
-        $("open").href = result.scan_url;
-        $("done").classList.remove("hidden");
-        show("Created.", "ok");
+        // Optional: also send to local FastAPI backend if running locally
+        try {
+          const fd = new FormData();
+          fd.append('title', title);
+          fd.append('photo_w', String(w));
+          fd.append('photo_h', String(h));
+          fd.append('photo', blob, 'photo.jpg');
+          fd.append('target', new Blob([targetBuffer]), 'target.mind');
+          fd.append('video', videoFile, videoFile.name);
+          fetch('/api/create', { method: 'POST', body: fd }).catch(() => {});
+        } catch (_) {}
+
+        progressWrap.style.display = 'none';
+        form.style.display = 'none';
+        successCard.style.display = 'block';
+
       } catch (err) {
-        console.error(err);
-        show(err.message || "Something went wrong", "err");
-      } finally {
-        $("go").disabled = false;
+        console.error('Registration failed:', err);
+        showAlert(err.message || 'An error occurred during registration. Please try again.');
+        submitBtn.disabled = false;
+        progressWrap.style.display = 'none';
       }
-    });
-
-    $("copy").addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText($("link").value); $("copy").textContent = "Copied!"; }
-      catch (_) { $("link").select(); }
     });
   </script>
 </body>

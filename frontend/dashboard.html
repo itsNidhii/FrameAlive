@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Memories — PicsAlive</title>
+  <meta name="description" content="View and manage your private registered photograph memories on PicsAlive.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="dashboard">
+
+  <!-- Top Navigation -->
+  <header class="nav" style="background: var(--white); border-bottom: 1px solid var(--border-light);">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/">
+        <span class="nav__logo-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+          </svg>
+        </span>
+        Pics<span>Alive</span>
+      </a>
+
+      <div class="nav__actions" style="display: flex; align-items: center; gap: 16px;">
+        <span id="userGreeting" style="font-size: 14px; color: var(--text-muted); font-weight: 500;"></span>
+        <a class="btn btn--secondary btn--sm" href="/scan.html" style="display: inline-flex; align-items: center; gap: 6px;">
+          📷 Start Camera
+        </a>
+        <a class="btn btn--primary btn--sm" href="/create.html" style="display: inline-flex; align-items: center; gap: 6px;">
+          + Register Photograph
+        </a>
+        <button id="signOutBtn" class="btn btn--ghost btn--sm" style="color: var(--text-muted);">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="container" style="padding-top: 40px; padding-bottom: 80px;">
+
+    <!-- Dashboard Header -->
+    <div class="dashboard__header">
+      <div>
+        <span class="label label--burgundy">Private Collection</span>
+        <h1 class="dashboard__title">My Memories</h1>
+        <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">
+          Photographs and videos registered to your personal account.
+        </p>
+      </div>
+
+      <div class="dashboard__actions">
+        <a class="btn btn--secondary btn--sm" href="/scan.html">
+          📷 Start Camera
+        </a>
+        <a class="btn btn--primary btn--sm" href="/create.html">
+          + New Memory
+        </a>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingIndicator" style="text-align: center; padding: 60px 0;">
+      <div style="font-family: var(--font-serif); font-size: 20px; color: var(--burgundy); font-style: italic;">
+        Loading your memories...
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="empty-state" style="display: none;">
+      <div class="empty-state__icon">🖼️</div>
+      <h2 class="empty-state__title">No registered memories yet</h2>
+      <p class="empty-state__desc">
+        Connect your first printed photograph to a special video. Point your phone camera at it anytime to bring the moment to life.
+      </p>
+      <a class="btn btn--primary btn--lg" href="/create.html">
+        Register Your First Photograph
+      </a>
+    </div>
+
+    <!-- Memories Grid -->
+    <div id="memoriesGrid" class="dashboard__grid" style="display: none;"></div>
+
+  </main>
+
+  <!-- Video Preview Modal -->
+  <div id="videoModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:20px;">
+    <div style="position:relative; width:100%; max-width:680px; background:#000; border-radius:16px; overflow:hidden; box-shadow:0 12px 48px rgba(0,0,0,0.5);">
+      <button id="closeModalBtn" style="position:absolute; top:12px; right:12px; z-index:10; background:rgba(255,255,255,0.25); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+      <video id="modalVideoPlayer" controls style="width:100%; aspect-ratio:16/9; display:block; outline:none;"></video>
+      <div style="padding:16px 20px; background:#1C2A35; color:#fff;">
+        <h3 id="modalVideoTitle" style="font-family:var(--font-sans); font-size:16px; font-weight:600; color:#fff; margin:0;"></h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase & Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+  <script src="/js/firebase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/db.js"></script>
+
+  <script>
+    let currentUser = null;
+
+    // Guard: must be signed in
+    Auth.requireAuth().then(user => {
+      currentUser = user;
+      const greeting = document.getElementById('userGreeting');
+      if (greeting) {
+        greeting.textContent = user.displayName || user.email;
+      }
+      loadUserMemories();
+    });
+
+    // Sign out handler
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      await Auth.signOut();
+      window.location.href = '/signin.html';
+    });
+
+    // Load memories for this user only
+    async function loadUserMemories() {
+      const loading = document.getElementById('loadingIndicator');
+      const emptyState = document.getElementById('emptyState');
+      const grid = document.getElementById('memoriesGrid');
+
+      try {
+        const memories = await DB.getUserMemories(currentUser.uid);
+        loading.style.display = 'none';
+
+        if (!memories || memories.length === 0) {
+          emptyState.style.display = 'block';
+          grid.style.display = 'none';
+          return;
+        }
+
+        emptyState.style.display = 'none';
+        grid.style.display = 'grid';
+        grid.innerHTML = '';
+
+        memories.forEach(mem => {
+          const card = document.createElement('div');
+          card.className = 'dashboard-card';
+
+          const formattedDate = mem.createdAt
+            ? (mem.createdAt.toDate ? mem.createdAt.toDate().toLocaleDateString() : new Date(mem.createdAt).toLocaleDateString())
+            : 'Recently added';
+
+          card.innerHTML = `
+            <img class="dashboard-card__image" src="${escapeHtml(mem.photoUrl)}" alt="${escapeHtml(mem.title)}">
+            <div class="dashboard-card__body">
+              <h3 class="dashboard-card__title">${escapeHtml(mem.title)}</h3>
+              <div class="dashboard-card__meta">${formattedDate}</div>
+              <div class="dashboard-card__actions">
+                <button class="btn btn--secondary btn--sm preview-btn" style="flex:1; padding:8px 12px; font-size:12px;">
+                  ▶ Play Video
+                </button>
+                <button class="btn btn--ghost btn--sm delete-btn" title="Delete memory" style="color:var(--error); padding:8px 10px;">
+                  🗑
+                </button>
+              </div>
+            </div>
+          `;
+
+          // Video preview button
+          card.querySelector('.preview-btn').addEventListener('click', () => {
+            openVideoModal(mem.videoUrl, mem.title);
+          });
+
+          // Delete button
+          card.querySelector('.delete-btn').addEventListener('click', async () => {
+            if (confirm(`Are you sure you want to delete "${mem.title}"?`)) {
+              await DB.deleteMemory(currentUser.uid, mem.id);
+              loadUserMemories();
+            }
+          });
+
+          grid.appendChild(card);
+        });
+
+      } catch (err) {
+        console.error('Error loading memories:', err);
+        loading.innerHTML = `<p style="color:var(--error);">Failed to load memories: ${err.message}</p>`;
+      }
+    }
+
+    // Modal controls
+    const modal = document.getElementById('videoModal');
+    const modalVideo = document.getElementById('modalVideoPlayer');
+    const modalTitle = document.getElementById('modalVideoTitle');
+    const closeModal = document.getElementById('closeModalBtn');
+
+    function openVideoModal(url, title) {
+      modalVideo.src = url;
+      modalTitle.textContent = title;
+      modal.style.display = 'flex';
+      modalVideo.play().catch(() => {});
+    }
+
+    function hideVideoModal() {
+      modalVideo.pause();
+      modalVideo.src = '';
+      modal.style.display = 'none';
+    }
+
+    closeModal.addEventListener('click', hideVideoModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) hideVideoModal();
+    });
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+  </script>
+</body>
+</html>

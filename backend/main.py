@@ -60,7 +60,7 @@ CREATE_PASSCODE = os.environ.get("CREATE_PASSCODE", "")
 
 ID_RE = re.compile(r"^[a-f0-9]{8}$")
 
-app = FastAPI(title="Photo-to-Video AR")
+app = FastAPI(title="PicsAlive — Interactive Memories")
 
 # ---------------------------------------------------------------- helpers
 ALL_TARGETS_PATH = DATA_DIR / "_all_targets.mind"

@@ -3,350 +3,330 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Scanner - FrameAlive</title>
+  <title>Camera Scanner — PicsAlive</title>
+  <meta name="description" content="Scan your registered photographs and watch them come alive with full-screen video playback.">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
+
   <style>
     html, body {
       height: 100%;
+      margin: 0;
+      padding: 0;
       overflow: hidden;
       background: #0a0c10;
-      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      font-family: var(--font-sans);
     }
-    #start {
+
+    #reticle {
       position: fixed;
-      inset: 0;
-      z-index: 40;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      padding: 24px;
-      text-align: center;
-      background: radial-gradient(circle at 50% 30%, rgba(26, 32, 48, 0.98), rgba(10, 12, 16, 0.99));
-      backdrop-filter: blur(20px);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(72vw, 300px);
+      aspect-ratio: 1;
+      border: 2px dashed rgba(197, 213, 224, 0.45);
+      border-radius: 20px;
+      pointer-events: none;
+      z-index: 25;
+      transition: all 0.3s ease;
     }
-    .badge-live {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(255, 106, 61, 0.15);
-      border: 1px solid rgba(255, 106, 61, 0.3);
-      color: #ff8855;
-      padding: 4px 12px;
-      border-radius: 999px;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
+
+    #reticle.active {
+      border-color: var(--burgundy);
+      border-style: solid;
+      box-shadow: 0 0 25px rgba(122, 35, 50, 0.6);
+      transform: translate(-50%, -50%) scale(1.04);
     }
-    .badge-live::before {
-      content: "";
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #ff6a3d;
-      box-shadow: 0 0 10px #ff6a3d;
-      animation: pulse 1.8s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
-    }
-    #previewStrip {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      max-width: 90vw;
-      padding: 8px 4px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    .preview-thumb {
-      width: 58px;
-      height: 58px;
-      border-radius: 10px;
-      object-fit: cover;
-      border: 2px solid rgba(255, 255, 255, 0.15);
-      background: #111;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    }
-    #topBar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 30;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 14px 16px;
-      background: linear-gradient(to bottom, rgba(10, 12, 16, 0.85), transparent);
-      pointer-events: auto;
-    }
-    .nav-btn {
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #fff;
-      padding: 8px 14px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: 600;
-      text-decoration: none;
-      backdrop-filter: blur(8px);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .nav-btn:active { transform: scale(0.97); }
+
     #hud {
       position: fixed;
       left: 0;
       right: 0;
       bottom: 0;
       z-index: 30;
-      padding: 20px 16px 28px;
+      padding: 24px 16px 36px;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 12px;
-      background: linear-gradient(to top, rgba(10, 12, 16, 0.9) 0%, rgba(10, 12, 16, 0.5) 60%, transparent 100%);
+      background: linear-gradient(to top, rgba(10, 12, 16, 0.9) 0%, rgba(10, 12, 16, 0.4) 60%, transparent 100%);
       pointer-events: none;
     }
-    #hud > * { pointer-events: auto; }
+
     #hint {
-      color: #fff;
-      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
       font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.55);
       padding: 8px 18px;
       border-radius: 999px;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-      transition: all 0.25s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    #hint.active {
-      background: rgba(30, 190, 120, 0.25);
-      border-color: rgba(30, 190, 120, 0.6);
-      color: #55ffb0;
-      box-shadow: 0 0 16px rgba(30, 190, 120, 0.3);
-    }
-    #reticle {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 220px;
-      height: 220px;
-      pointer-events: none;
-      z-index: 10;
-      border: 2px dashed rgba(255, 255, 255, 0.25);
-      border-radius: 20px;
-      transition: opacity 0.3s;
-    }
-    #reticle.hidden { opacity: 0; }
-    #videoStore {
-      position: fixed;
-      width: 1px;
-      height: 1px;
-      opacity: 0;
-      pointer-events: none;
+
+    /* Video Player Progress and Timeline */
+    .player-progress-bar {
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      accent-color: var(--burgundy);
     }
   </style>
 </head>
-<body>
-  <!-- Top Navigation in AR Mode -->
-  <div id="topBar" class="hidden">
-    <a class="nav-btn" href="/">← Home</a>
-    <span class="badge-live">AR Live</span>
-    <button id="muteBtn" class="nav-btn" type="button">🔊 Sound On</button>
-  </div>
+<body class="scan-page">
 
-  <!-- Reticle framing guide -->
-  <div id="reticle" class="hidden"></div>
-
-  <!-- Start Screen -->
-  <div id="start">
-    <span class="badge-live" id="startBadge">Universal Scanner</span>
-    <h1 id="startTitle" style="margin:0;font-size:clamp(24px, 6vw, 34px);font-weight:800;">
-      Frame<span style="color:var(--accent)">Alive</span> Camera
-    </h1>
-    
-    <div id="startDesc" style="color:var(--muted);max-width:360px;font-size:15px;line-height:1.4">
-      Tap Start Camera, then point your phone at any registered photo. The video will play right on top of it.
+  <!-- Initial Launcher Screen -->
+  <div id="startScreen" class="scan-start">
+    <div class="scan-start__logo">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+      </svg>
+      Pics<span>Alive</span>
     </div>
 
-    <!-- Thumbnail preview strip of active photos -->
-    <div id="previewStrip" class="hidden"></div>
+    <h1 class="scan-start__title" id="startTitle">Relive Your Memory</h1>
+    <p class="scan-start__desc" id="startDesc">
+      Point your camera at your printed photograph to unlock the living story.
+    </p>
 
-    <button id="startBtn" class="btn" type="button" style="padding:16px 36px;font-size:18px;margin-top:10px">
-      📷 Start Camera
+    <!-- Registered Photo Thumbnails -->
+    <div id="thumbStrip" class="scan-start__thumbs" style="display: none;"></div>
+
+    <button id="startBtn" class="scan-start__btn">
+      📷 Start Camera Scanner
     </button>
-    <div id="startMsg" class="msg hidden"></div>
 
-    <div style="margin-top:12px">
-      <a href="/create.html" style="color:var(--muted);font-size:14px;text-decoration:none">
-        Want to link a new photo? <span style="color:var(--accent-2);text-decoration:underline">Create here</span>
+    <div style="display: flex; gap: 14px; margin-top: 8px;">
+      <a href="/dashboard.html" class="btn btn--ghost btn--sm" style="color: var(--powder-blue);">
+        My Memories
+      </a>
+      <a href="/" class="btn btn--ghost btn--sm" style="color: rgba(255,255,255,0.6);">
+        Home
       </a>
     </div>
+
+    <div id="startError" style="display: none; color: #ff8888; font-size: 13px; max-width: 320px; margin-top: 10px;"></div>
   </div>
 
-  <!-- AR HUD -->
-  <div id="hud" class="hidden">
-    <div id="hint">Point camera at any photo</div>
+  <!-- Camera HUD & Controls -->
+  <div id="arTopbar" class="ar-topbar" style="display: none;">
+    <a href="/dashboard.html" class="ar-topbar__btn">
+      ← Back
+    </a>
+    <span class="ar-badge">
+      <span style="width: 7px; height: 7px; border-radius: 50%; background: #4ADE80; display: inline-block;"></span>
+      PicsAlive Scanner
+    </span>
+    <button id="switchAudioBtn" class="ar-topbar__btn">
+      🔊 Sound On
+    </button>
   </div>
 
-  <div id="videoStore"></div>
+  <div id="reticle" style="display: none;"></div>
 
-  <!-- A-Frame 1.4.2 and MindAR 1.2.5 -->
+  <div id="hud" style="display: none;">
+    <div id="hint">Point camera at your photo</div>
+  </div>
+
+  <!-- Short Loading Animation (Cute Animated Dots, 1-2s) -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-overlay__text">
+      Bringing your memory to life
+      <span class="loading-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </span>
+    </div>
+    <div class="loading-overlay__sub" id="loadingMemoryTitle">Recognized photograph</div>
+  </div>
+
+  <!-- Dedicated Immersive Full-Screen Video Player -->
+  <div id="videoOverlay" class="video-overlay" style="display: none;">
+    <!-- Top Bar with Title and Close/Scan Again -->
+    <div class="video-overlay__topbar">
+      <div class="video-overlay__title" id="playerTitle">Memory Playback</div>
+      <button class="video-overlay__close" id="closePlayerBtn" title="Return to Camera">✕</button>
+    </div>
+
+    <!-- The Video Element (fills screen responsively) -->
+    <video
+      id="immersiveVideo"
+      class="video-overlay__video"
+      playsinline
+      webkit-playsinline
+      preload="auto">
+    </video>
+
+    <!-- Bottom Controls -->
+    <div class="video-overlay__controls">
+      <button class="video-overlay__btn" id="playPauseBtn">
+        ⏸ Pause
+      </button>
+      <button class="video-overlay__btn" id="muteToggleBtn">
+        🔊 Mute
+      </button>
+      <button class="video-overlay__btn" id="scanAgainBtn" style="background: var(--burgundy); border-color: var(--burgundy);">
+        📷 Scan Another Photo
+      </button>
+    </div>
+  </div>
+
+  <!-- A-Frame & MindAR -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@msgpack/msgpack@3.0.0-beta2/dist.es5+umd/msgpack.min.js"></script>
+
+  <!-- Firebase & App SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+  <script src="/js/firebase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/db.js"></script>
+
   <script>
-    const $ = (id) => document.getElementById(id);
-
-    // Check if opened with a specific experience ID e.g. /s/3fa9c1d2
-    const pathParts = location.pathname.split("/").filter(Boolean);
-    const isSingleMode = pathParts[0] === "s" && pathParts[1] && /^[a-f0-9]{8}$/.test(pathParts[1]);
-    const singleExpId = isSingleMode ? pathParts[1] : null;
-
+    let currentUser = null;
+    let targetExperiences = [];
+    let activeScene = null;
+    let isRecognizing = true;
     let soundEnabled = true;
-    let experiences = [];
-    let videos = [];
-    let activeTargetIndex = null;
-    let targetLostTimer = null;
 
-    function say(text, cls) {
-      const el = $("startMsg");
-      if (!text) { el.classList.add("hidden"); return; }
-      el.textContent = text;
-      el.className = "msg " + (cls || "");
-      el.classList.remove("hidden");
-    }
+    const startScreen = document.getElementById('startScreen');
+    const startBtn = document.getElementById('startBtn');
+    const startTitle = document.getElementById('startTitle');
+    const startDesc = document.getElementById('startDesc');
+    const thumbStrip = document.getElementById('thumbStrip');
+    const startError = document.getElementById('startError');
+    const arTopbar = document.getElementById('arTopbar');
+    const reticle = document.getElementById('reticle');
+    const hud = document.getElementById('hud');
+    const hint = document.getElementById('hint');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingMemoryTitle = document.getElementById('loadingMemoryTitle');
+    const videoOverlay = document.getElementById('videoOverlay');
+    const immersiveVideo = document.getElementById('immersiveVideo');
+    const playerTitle = document.getElementById('playerTitle');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const muteToggleBtn = document.getElementById('muteToggleBtn');
+    const closePlayerBtn = document.getElementById('closePlayerBtn');
+    const scanAgainBtn = document.getElementById('scanAgainBtn');
+    const switchAudioBtn = document.getElementById('switchAudioBtn');
 
-    function updateMuteBtn() {
-      $("muteBtn").textContent = soundEnabled ? "🔊 Sound On" : "🔇 Sound Off";
-      videos.forEach(v => { v.muted = !soundEnabled; });
-    }
-
+    // 1. Initialize user & targets
     async function init() {
-      if (!window.isSecureContext) {
-        say("Camera access requires HTTPS. Open this URL with https:// or through your tunnel.", "err");
+      try {
+        currentUser = await Auth.waitForUser();
+
+        let targetData = null;
+
+        if (currentUser) {
+          // Fetch current user's registered photographs
+          const userMemories = await DB.getUserMemories(currentUser.uid);
+          if (userMemories && userMemories.length > 0) {
+            targetExperiences = userMemories;
+            targetData = await DB.getUserTargets(currentUser.uid);
+          }
+        }
+
+        // If user has no targets yet, check backend seed / demo experiences
+        if (!targetExperiences || targetExperiences.length === 0) {
+          try {
+            const res = await fetch('/api/experiences');
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.length > 0) {
+                targetExperiences = data.map(d => ({
+                  id: d.id,
+                  title: d.title,
+                  photoUrl: d.photo_url,
+                  videoUrl: d.video_url,
+                  targetUrl: d.target_url || '/api/all_targets.mind',
+                  ratio: d.ratio || 1.0
+                }));
+              }
+            }
+          } catch (_) {}
+        }
+
+        renderStartScreen(targetExperiences, targetData);
+
+      } catch (err) {
+        console.error('Initialization error:', err);
+        startError.textContent = 'Could not load registered memories: ' + err.message;
+        startError.style.display = 'block';
+      }
+    }
+
+    function renderStartScreen(experiences, targetData) {
+      if (!experiences || experiences.length === 0) {
+        startTitle.textContent = 'No Memories Registered';
+        startDesc.innerHTML = 'You have not registered any photographs yet.<br><a href="/create.html" style="color:var(--powder-blue); font-weight:600; text-decoration:underline; margin-top:8px; display:inline-block;">+ Register your first photograph</a>';
+        startBtn.style.display = 'none';
+        return;
       }
 
-      let targetMindUrl = "";
+      startTitle.textContent = `Ready to Scan (${experiences.length} Memories)`;
+      startDesc.textContent = 'Point your camera at any of your registered photos to unlock immersive playback.';
 
-      if (isSingleMode) {
-        // Single experience mode
-        try {
-          const res = await fetch("/api/experiences/" + encodeURIComponent(singleExpId));
-          if (!res.ok) throw new Error();
-          const meta = await res.json();
-          experiences = [{
-            targetIndex: 0,
-            id: meta.id,
-            title: meta.title,
-            photo_url: meta.photo_url,
-            video_url: meta.video_url,
-            photo_w: meta.photo_w,
-            photo_h: meta.photo_h,
-            ratio: meta.photo_h / meta.photo_w
-          }];
-          targetMindUrl = meta.target_url;
-          $("startBadge").textContent = "Live Photo";
-          $("startTitle").textContent = meta.title || "FrameAlive";
-        } catch (_) {
-          $("startTitle").textContent = "Not Found";
-          say("This photo link does not exist (or was removed).", "err");
-          return;
+      thumbStrip.innerHTML = '';
+      experiences.forEach(exp => {
+        if (exp.photoUrl) {
+          const img = document.createElement('img');
+          img.className = 'scan-start__thumb';
+          img.src = exp.photoUrl;
+          img.alt = exp.title || 'Memory';
+          thumbStrip.appendChild(img);
         }
-      } else {
-        // Universal scanner mode (any photo created on the server)
-        try {
-          const res = await fetch("/api/experiences");
-          if (!res.ok) throw new Error();
-          const data = await res.json();
-          experiences = data.experiences || [];
-          targetMindUrl = "/api/all_targets.mind";
-        } catch (err) {
-          console.error(err);
-          say("Failed to connect to server.", "err");
-          return;
+      });
+      thumbStrip.style.display = 'flex';
+    }
+
+    // 2. Start Camera and A-Frame Scene
+    startBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      startBtn.textContent = 'Starting camera...';
+
+      try {
+        let mindUrl = '/api/all_targets.mind';
+        if (currentUser) {
+          const uTargets = await DB.getUserTargets(currentUser.uid);
+          if (uTargets && uTargets.blobUrl) mindUrl = uTargets.blobUrl;
         }
 
-        if (experiences.length === 0) {
-          $("startTitle").textContent = "No Photos Yet";
-          $("startDesc").textContent = "No live photos have been created yet. Create your first one to link a photo to a video!";
-          $("startBtn").textContent = "✨ Create Photo";
-          $("startBtn").onclick = () => { location.href = "/create.html"; };
-          return;
-        }
-
-        // Show thumbnails of available photos
-        const strip = $("previewStrip");
-        strip.innerHTML = "";
-        experiences.slice(0, 6).forEach(exp => {
-          const img = document.createElement("img");
-          img.src = exp.photo_url;
-          img.className = "preview-thumb";
-          img.title = exp.title;
-          img.alt = exp.title;
-          strip.appendChild(img);
-        });
-        strip.classList.remove("hidden");
-        $("startDesc").textContent = `Point your camera at any of the ${experiences.length} registered photos to bring it alive.`;
+        buildARScene(mindUrl, targetExperiences);
+      } catch (err) {
+        console.error('Failed to start camera:', err);
+        startError.textContent = 'Camera initialization failed: ' + err.message;
+        startError.style.display = 'block';
+        startBtn.disabled = false;
+        startBtn.textContent = '📷 Start Camera Scanner';
       }
+    });
 
-      // Pre-create video elements in videoStore
-      const videoStore = $("videoStore");
-      videoStore.innerHTML = "";
-      videos = [];
-
+    function buildARScene(mindUrl, experiences) {
+      // Create target entities
+      let targetsHtml = '';
       experiences.forEach((exp, idx) => {
-        const vid = document.createElement("video");
-        vid.id = `vid-${idx}`;
-        vid.src = exp.video_url;
-        vid.loop = true;
-        vid.preload = "metadata";
-        vid.setAttribute("playsinline", "");
-        vid.setAttribute("webkit-playsinline", "");
-        vid.crossOrigin = "anonymous";
-        vid.muted = !soundEnabled;
-        videoStore.appendChild(vid);
-        videos.push(vid);
+        targetsHtml += `<a-entity id="targetAnchor-${idx}" mindar-image-target="targetIndex: ${idx}"></a-entity>`;
       });
 
-      // Build A-Frame Scene with Rock-Solid Anti-Jitter Filtering
-      // filterMinCF: 0.0001 (eliminates slow trembling/drift)
-      // filterBeta: 0.001 (prevents the 1000x high-frequency camera-noise explosion)
-      // missTolerance: 10 (keeps tracking steady when phone moves without flashing black)
-      // warmupTolerance: 5 (solid initial lock)
-      let entitiesHtml = "";
-      experiences.forEach((exp, idx) => {
-        const ratio = exp.ratio || 1.0;
-        entitiesHtml += `
-          <a-entity id="anchor-${idx}" mindar-image-target="targetIndex: ${idx}">
-            <a-video id="plane-${idx}" src="#vid-${idx}" position="0 0 0.001" width="1" height="${ratio}"></a-video>
-          </a-entity>
-        `;
-      });
-
-      document.body.insertAdjacentHTML("beforeend", `
-        <a-scene id="scene"
-          mindar-image="imageTargetSrc: ${targetMindUrl};
+      const sceneHtml = `
+        <a-scene id="mindarScene"
+          mindar-image="imageTargetSrc: ${mindUrl};
                         maxTrack: 1;
                         filterMinCF: 0.0001;
                         filterBeta: 0.001;
                         missTolerance: 10;
                         warmupTolerance: 5;
-                        autoStart: false;
+                        autoStart: true;
                         uiLoading: no;
                         uiScanning: no;
                         uiError: no;"
@@ -355,132 +335,124 @@
           vr-mode-ui="enabled: false"
           device-orientation-permission-ui="enabled: false">
           <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-          ${entitiesHtml}
+          ${targetsHtml}
         </a-scene>
-      `);
+      `;
 
-      // Adjust plane aspect ratios once video metadata is known
+      document.body.insertAdjacentHTML('beforeend', sceneHtml);
+      activeScene = document.getElementById('mindarScene');
+
+      activeScene.addEventListener('arReady', () => {
+        startScreen.style.display = 'none';
+        arTopbar.style.display = 'flex';
+        reticle.style.display = 'block';
+        hud.style.display = 'flex';
+      });
+
+      activeScene.addEventListener('arError', (e) => {
+        startScreen.style.display = 'flex';
+        startBtn.disabled = false;
+        startBtn.textContent = '📷 Start Camera Scanner';
+        startError.textContent = 'Please allow camera permission in your browser to scan.';
+        startError.style.display = 'block';
+      });
+
+      // Bind target detection
       experiences.forEach((exp, idx) => {
-        const vid = videos[idx];
-        const plane = $(`plane-${idx}`);
-        const ratio = exp.ratio || 1.0;
-        vid.addEventListener("loadedmetadata", () => {
-          if (!plane) return;
-          const vr = vid.videoWidth / vid.videoHeight;
-          let w = 1, h = ratio;
-          if (vr > 1 / ratio) {
-            h = 1 / vr;
-          } else {
-            w = ratio * vr;
-          }
-          plane.setAttribute("width", w);
-          plane.setAttribute("height", h);
+        const anchor = document.getElementById(`targetAnchor-${idx}`);
+        if (!anchor) return;
+
+        anchor.addEventListener('targetFound', () => {
+          if (!isRecognizing) return;
+          onPhotographRecognized(exp);
         });
-      });
-
-      const scene = $("scene");
-
-      // Bind tracking events for each target
-      experiences.forEach((exp, idx) => {
-        const anchor = $(`anchor-${idx}`);
-        const vid = videos[idx];
-
-        anchor.addEventListener("targetFound", () => {
-          if (targetLostTimer) {
-            clearTimeout(targetLostTimer);
-            targetLostTimer = null;
-          }
-
-          // Stop any other active video
-          if (activeTargetIndex !== null && activeTargetIndex !== idx) {
-            const prevVid = videos[activeTargetIndex];
-            if (prevVid) prevVid.pause();
-          }
-
-          activeTargetIndex = idx;
-          $("hint").textContent = `✨ Playing "${exp.title || 'Live Photo'}"`;
-          $("hint").classList.add("active");
-          $("reticle").classList.add("hidden");
-
-          vid.play().catch(() => {
-            // Browser policy fallback: play muted if sound rejected
-            vid.muted = true;
-            soundEnabled = false;
-            updateMuteBtn();
-            vid.play().catch(() => {});
-          });
-        });
-
-        anchor.addEventListener("targetLost", () => {
-          if (activeTargetIndex === idx) {
-            // Grace period: prevents video stutter/vibration if tracking momentarily dips for a fraction of a second
-            targetLostTimer = setTimeout(() => {
-              vid.pause();
-              activeTargetIndex = null;
-              $("hint").textContent = "Point camera at any photo";
-              $("hint").classList.remove("active");
-              $("reticle").classList.remove("hidden");
-            }, 350);
-          }
-        });
-      });
-
-      scene.addEventListener("arReady", () => {
-        $("start").classList.add("hidden");
-        $("topBar").classList.remove("hidden");
-        $("hud").classList.remove("hidden");
-        $("reticle").classList.remove("hidden");
-      });
-
-      scene.addEventListener("arError", () => {
-        $("start").classList.remove("hidden");
-        $("startBtn").disabled = false;
-        say("Could not access camera. Please allow camera permission and reload.", "err");
-      });
-
-      $("muteBtn").addEventListener("click", () => {
-        soundEnabled = !soundEnabled;
-        updateMuteBtn();
-      });
-
-      // Start button click handler (unlocks audio context with user gesture)
-      $("startBtn").addEventListener("click", async () => {
-        $("startBtn").disabled = true;
-        say("Starting AR camera...");
-
-        // Unlock audio for all video elements while inside the click gesture
-        for (const vid of videos) {
-          try {
-            vid.muted = false;
-            await vid.play();
-            vid.pause();
-            vid.currentTime = 0;
-          } catch (_) {
-            vid.muted = true;
-            soundEnabled = false;
-          }
-        }
-        updateMuteBtn();
-
-        try {
-          if (!scene.hasLoaded) {
-            say("Loading AR engine, please wait...");
-            await new Promise((resolve, reject) => {
-              scene.addEventListener("loaded", resolve, { once: true });
-              setTimeout(() => reject(new Error("Loading AR engine timed out. Try refreshing.")), 25000);
-            });
-          }
-          const sys = scene.systems["mindar-image-system"];
-          if (!sys) throw new Error("AR system not initialized. Try refreshing.");
-          await sys.start();
-        } catch (e) {
-          console.error(e);
-          $("startBtn").disabled = false;
-          say("Failed to start AR: " + (e && e.message ? e.message : "unknown error"), "err");
-        }
       });
     }
 
+    // 3. Photograph Recognized: Transition from Camera to Immersive Playback
+    function onPhotographRecognized(memory) {
+      isRecognizing = false;
+
+      // Visual feedback on reticle
+      reticle.classList.add('active');
+      hint.textContent = `✨ Found: ${memory.title}`;
+
+      // Short loading animation (1.2 seconds) with cute dots
+      loadingMemoryTitle.textContent = `"${memory.title || 'Memory'}"`;
+      loadingOverlay.style.display = 'flex';
+
+      setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+        reticle.classList.remove('active');
+        openImmersiveVideoPlayer(memory);
+      }, 1300);
+    }
+
+    // 4. Immersive Full-Screen Video Player
+    function openImmersiveVideoPlayer(memory) {
+      playerTitle.textContent = memory.title || 'Memory';
+      immersiveVideo.src = memory.videoUrl;
+      immersiveVideo.muted = !soundEnabled;
+
+      videoOverlay.style.display = 'flex';
+      updatePlayerControls();
+
+      immersiveVideo.play().catch(err => {
+        console.warn('Auto-play muted fallback:', err);
+        immersiveVideo.muted = true;
+        soundEnabled = false;
+        updatePlayerControls();
+        immersiveVideo.play().catch(() => {});
+      });
+
+      immersiveVideo.onended = () => {
+        playPauseBtn.textContent = '▶ Replay';
+      };
+    }
+
+    function closeImmersiveVideoPlayer() {
+      immersiveVideo.pause();
+      immersiveVideo.src = '';
+      videoOverlay.style.display = 'none';
+      hint.textContent = 'Point camera at your photo';
+
+      // Brief delay before re-enabling recognition so it doesn't instantly retrigger
+      setTimeout(() => {
+        isRecognizing = true;
+      }, 700);
+    }
+
+    // Controls
+    playPauseBtn.addEventListener('click', () => {
+      if (immersiveVideo.paused) {
+        immersiveVideo.play();
+        playPauseBtn.textContent = '⏸ Pause';
+      } else {
+        immersiveVideo.pause();
+        playPauseBtn.textContent = '▶ Play';
+      }
+    });
+
+    muteToggleBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      immersiveVideo.muted = !soundEnabled;
+      updatePlayerControls();
+    });
+
+    switchAudioBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      switchAudioBtn.textContent = soundEnabled ? '🔊 Sound On' : '🔇 Muted';
+    });
+
+    function updatePlayerControls() {
+      muteToggleBtn.textContent = soundEnabled ? '🔊 Sound On' : '🔇 Muted';
+      playPauseBtn.textContent = immersiveVideo.paused ? '▶ Play' : '⏸ Pause';
+    }
+
+    closePlayerBtn.addEventListener('click', closeImmersiveVideoPlayer);
+    scanAgainBtn.addEventListener('click', closeImmersiveVideoPlayer);
+
+    // Run init on page load
     init();
   </script>
 </body>

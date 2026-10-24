@@ -1,7 +1,7 @@
 [project]
-name = "framealive"
-version = "0.1.0"
-description = "Photo-to-Video AR web app"
+name = "picsalive"
+version = "0.2.0"
+description = "PicsAlive — Interactive photo memories that play videos"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.115",
