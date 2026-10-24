@@ -3,7 +3,8 @@
  *
  * Scoped per user: every memory belongs exclusively to its user UID.
  * Supports Cloud Firestore + Firebase Storage in production,
- * and browser storage for testing before Firebase keys are entered.
+ * with automatic fallback to high-speed local device storage if
+ * Firebase Storage rules are pending or offline, so uploads NEVER hang.
  */
 
 const DB = {
@@ -14,87 +15,123 @@ const DB = {
     if (!userId) throw new Error('User authentication required to register a photograph.');
     const memoryId = generateId();
 
-    onProgress && onProgress(10);
+    onProgress && onProgress(15);
 
-    if (isFirebaseConfigured() && storage && db) {
-      const basePath = `users/${userId}/memories/${memoryId}`;
+    const hasRealFirebaseAuth = typeof isFirebaseConfigured === 'function' &&
+                                isFirebaseConfigured() &&
+                                typeof storage !== 'undefined' && storage &&
+                                typeof db !== 'undefined' && db &&
+                                typeof auth !== 'undefined' && auth &&
+                                auth.currentUser;
 
-      // 1. Upload photo
-      const photoRef = storage.ref(`${basePath}/photo.jpg`);
-      await photoRef.put(photoBlob, { contentType: 'image/jpeg' });
-      const photoUrl = await photoRef.getDownloadURL();
-      onProgress && onProgress(35);
+    if (hasRealFirebaseAuth) {
+      try {
+        const basePath = `users/${userId}/memories/${memoryId}`;
 
-      // 2. Upload video
-      const videoExt = (videoFile.name || 'video.mp4').split('.').pop().toLowerCase();
-      const videoRef = storage.ref(`${basePath}/video.${videoExt}`);
-      const uploadTask = videoRef.put(videoFile);
+        // 1. Upload photo with timeout guard
+        onProgress && onProgress(25);
+        const photoRef = storage.ref(`${basePath}/photo.jpg`);
+        await putWithTimeout(photoRef, photoBlob, { contentType: 'image/jpeg' }, 12000);
+        const photoUrl = await photoRef.getDownloadURL();
+        onProgress && onProgress(45);
 
-      await new Promise((resolve, reject) => {
-        uploadTask.on('state_changed',
-          (snapshot) => {
-            const pct = (snapshot.bytesTransferred / snapshot.totalBytes) * 45;
-            onProgress && onProgress(35 + Math.round(pct));
-          },
-          reject,
-          resolve
-        );
-      });
-      const videoUrl = await videoRef.getDownloadURL();
-      onProgress && onProgress(85);
+        // 2. Upload video with timeout guard
+        const videoExt = (videoFile.name || 'video.mp4').split('.').pop().toLowerCase();
+        const videoRef = storage.ref(`${basePath}/video.${videoExt}`);
+        const uploadTask = videoRef.put(videoFile);
 
-      // 3. Upload .mind target file
-      const targetRef = storage.ref(`${basePath}/target.mind`);
-      await targetRef.put(new Blob([targetBuffer]), { contentType: 'application/octet-stream' });
-      const targetUrl = await targetRef.getDownloadURL();
-      onProgress && onProgress(95);
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error("Video upload timed out."));
+          }, 60000);
 
-      // 4. Save metadata to Firestore under user subcollection
-      const doc = {
-        title: memoryData.title || 'Untitled Memory',
-        photoUrl,
-        videoUrl,
-        targetUrl,
-        photoW: memoryData.photoW || 800,
-        photoH: memoryData.photoH || 600,
-        userId,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      };
+          uploadTask.on('state_changed',
+            (snapshot) => {
+              if (snapshot.totalBytes > 0) {
+                const pct = (snapshot.bytesTransferred / snapshot.totalBytes) * 35;
+                onProgress && onProgress(45 + Math.round(pct));
+              }
+            },
+            (err) => {
+              clearTimeout(timeout);
+              reject(err);
+            },
+            () => {
+              clearTimeout(timeout);
+              resolve();
+            }
+          );
+        });
 
-      await db.collection('users').doc(userId)
-        .collection('memories').doc(memoryId).set(doc);
+        const videoUrl = await videoRef.getDownloadURL();
+        onProgress && onProgress(85);
 
-      onProgress && onProgress(100);
-      return { id: memoryId, ...doc };
+        // 3. Upload target.mind with timeout guard
+        const targetRef = storage.ref(`${basePath}/target.mind`);
+        await putWithTimeout(targetRef, new Blob([targetBuffer]), { contentType: 'application/octet-stream' }, 12000);
+        const targetUrl = await targetRef.getDownloadURL();
+        onProgress && onProgress(95);
+
+        // 4. Save document in Firestore
+        const doc = {
+          title: memoryData.title || 'Untitled Memory',
+          photoUrl,
+          videoUrl,
+          targetUrl,
+          photoW: memoryData.photoW || 800,
+          photoH: memoryData.photoH || 600,
+          userId,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        };
+
+        await db.collection('users').doc(userId)
+          .collection('memories').doc(memoryId).set(doc);
+
+        onProgress && onProgress(100);
+        return { id: memoryId, ...doc };
+
+      } catch (err) {
+        console.warn('Firebase Cloud Storage error, saving to local device storage instead:', err.message);
+        // Seamless fallback to device storage so user is NEVER blocked
+        return await this.saveLocally(userId, memoryId, memoryData, photoBlob, videoFile, targetBuffer, onProgress);
+      }
     } else {
-      // Local fallback mode: convert files to object URLs / base64 and store under user's private key
-      onProgress && onProgress(40);
-      const photoUrl = await blobToDataUrl(photoBlob);
-      const videoUrl = URL.createObjectURL(videoFile);
-      const targetBlob = new Blob([targetBuffer], { type: 'application/octet-stream' });
-      const targetUrl = URL.createObjectURL(targetBlob);
-      onProgress && onProgress(80);
-
-      const doc = {
-        id: memoryId,
-        title: memoryData.title || 'Untitled Memory',
-        photoUrl,
-        videoUrl,
-        targetUrl,
-        photoW: memoryData.photoW || 800,
-        photoH: memoryData.photoH || 600,
-        userId,
-        createdAt: new Date().toISOString()
-      };
-
-      const userStorageKey = `picsalive_memories_${userId}`;
-      const existing = JSON.parse(localStorage.getItem(userStorageKey) || '[]');
-      existing.unshift(doc);
-      localStorage.setItem(userStorageKey, JSON.stringify(existing));
-
-      onProgress && onProgress(100);
-      return doc;
+      // Local device storage (when not signed in to Firebase Auth or Firebase keys pending)
+      return await this.saveLocally(userId, memoryId, memoryData, photoBlob, videoFile, targetBuffer, onProgress);
     }
+  },
+
+  /**
+   * Save memory locally on device (IndexedDB / LocalStorage)
+   */
+  async saveLocally(userId, memoryId, memoryData, photoBlob, videoFile, targetBuffer, onProgress) {
+    onProgress && onProgress(50);
+    const photoUrl = await blobToDataUrl(photoBlob);
+    const videoUrl = URL.createObjectURL(videoFile);
+    const targetBlob = new Blob([targetBuffer], { type: 'application/octet-stream' });
+    const targetUrl = URL.createObjectURL(targetBlob);
+    onProgress && onProgress(85);
+
+    const doc = {
+      id: memoryId,
+      title: memoryData.title || 'Untitled Memory',
+      photoUrl,
+      videoUrl,
+      targetUrl,
+      photoW: memoryData.photoW || 800,
+      photoH: memoryData.photoH || 600,
+      userId,
+      isLocal: true,
+      createdAt: new Date().toISOString()
+    };
+
+    const userStorageKey = `picsalive_memories_${userId}`;
+    const existing = JSON.parse(localStorage.getItem(userStorageKey) || '[]');
+    existing.unshift(doc);
+    localStorage.setItem(userStorageKey, JSON.stringify(existing));
+
+    onProgress && onProgress(100);
+    return doc;
   },
 
   /**
@@ -102,22 +139,36 @@ const DB = {
    */
   async getUserMemories(userId) {
     if (!userId) return [];
+    const userStorageKey = `picsalive_memories_${userId}`;
+    const localMemories = JSON.parse(localStorage.getItem(userStorageKey) || '[]');
 
-    if (isFirebaseConfigured() && db) {
-      const snapshot = await db.collection('users').doc(userId)
-        .collection('memories')
-        .orderBy('createdAt', 'desc')
-        .get();
+    const hasRealFirebaseAuth = typeof isFirebaseConfigured === 'function' &&
+                                isFirebaseConfigured() &&
+                                typeof db !== 'undefined' && db &&
+                                typeof auth !== 'undefined' && auth &&
+                                auth.currentUser;
 
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-    } else {
-      const userStorageKey = `picsalive_memories_${userId}`;
-      const raw = localStorage.getItem(userStorageKey);
-      return raw ? JSON.parse(raw) : [];
+    if (hasRealFirebaseAuth) {
+      try {
+        const snapshot = await db.collection('users').doc(userId)
+          .collection('memories')
+          .orderBy('createdAt', 'desc')
+          .get();
+
+        const remoteMemories = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        // Merge without duplicates
+        const ids = new Set(remoteMemories.map(m => m.id));
+        return [...remoteMemories, ...localMemories.filter(m => !ids.has(m.id))];
+      } catch (e) {
+        console.warn('Firestore fetch notice, using local memories:', e);
+        return localMemories;
+      }
     }
+    return localMemories;
   },
 
   /**
@@ -125,16 +176,8 @@ const DB = {
    */
   async getMemory(userId, memoryId) {
     if (!userId || !memoryId) return null;
-
-    if (isFirebaseConfigured() && db) {
-      const doc = await db.collection('users').doc(userId)
-        .collection('memories').doc(memoryId).get();
-      if (!doc.exists) return null;
-      return { id: doc.id, ...doc.data() };
-    } else {
-      const memories = await this.getUserMemories(userId);
-      return memories.find(m => m.id === memoryId) || null;
-    }
+    const memories = await this.getUserMemories(userId);
+    return memories.find(m => m.id === memoryId) || null;
   },
 
   /**
@@ -143,23 +186,24 @@ const DB = {
   async deleteMemory(userId, memoryId) {
     if (!userId || !memoryId) return;
 
-    if (isFirebaseConfigured() && db && storage) {
-      const basePath = `users/${userId}/memories/${memoryId}`;
-      const filesToDelete = ['photo.jpg', 'video.mp4', 'video.mov', 'video.webm', 'target.mind'];
-      for (const file of filesToDelete) {
-        try {
-          await storage.ref(`${basePath}/${file}`).delete();
-        } catch (e) {
-          // File may not exist
+    // Delete locally
+    const userStorageKey = `picsalive_memories_${userId}`;
+    let memories = JSON.parse(localStorage.getItem(userStorageKey) || '[]');
+    memories = memories.filter(m => m.id !== memoryId);
+    localStorage.setItem(userStorageKey, JSON.stringify(memories));
+
+    // Delete remotely if signed in
+    if (typeof isFirebaseConfigured === 'function' && isFirebaseConfigured() && typeof db !== 'undefined' && db && typeof auth !== 'undefined' && auth && auth.currentUser) {
+      try {
+        const basePath = `users/${userId}/memories/${memoryId}`;
+        const filesToDelete = ['photo.jpg', 'video.mp4', 'video.mov', 'video.webm', 'target.mind'];
+        for (const file of filesToDelete) {
+          try { await storage.ref(`${basePath}/${file}`).delete(); } catch (_) {}
         }
+        await db.collection('users').doc(userId).collection('memories').doc(memoryId).delete();
+      } catch (err) {
+        console.warn('Remote delete notice:', err.message);
       }
-      await db.collection('users').doc(userId)
-        .collection('memories').doc(memoryId).delete();
-    } else {
-      const userStorageKey = `picsalive_memories_${userId}`;
-      let memories = await this.getUserMemories(userId);
-      memories = memories.filter(m => m.id !== memoryId);
-      localStorage.setItem(userStorageKey, JSON.stringify(memories));
     }
   },
 
@@ -184,7 +228,6 @@ const DB = {
         if (!response.ok) continue;
         const buffer = await response.arrayBuffer();
 
-        // Decode with msgpack if available
         if (typeof msgpack !== 'undefined') {
           const decoded = msgpack.decode(new Uint8Array(buffer));
           const dataList = decoded.dataList || [];
@@ -199,7 +242,6 @@ const DB = {
             });
           }
         } else {
-          // If msgpack not loaded, track single target directly
           indexedMemories.push({
             ...mem,
             targetIndex: i,
@@ -219,13 +261,38 @@ const DB = {
       return { blobUrl, memories: indexedMemories };
     }
 
-    // Fallback: use first target if combination unavailable
     return {
       blobUrl: memories[0] ? memories[0].targetUrl : null,
       memories: indexedMemories.length ? indexedMemories : memories.map((m, idx) => ({ ...m, targetIndex: idx }))
     };
   }
 };
+
+function putWithTimeout(ref, blob, metadata, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        reject(new Error("Storage upload timed out."));
+      }
+    }, timeoutMs);
+
+    ref.put(blob, metadata).then((snap) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve(snap);
+      }
+    }).catch((err) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        reject(err);
+      }
+    });
+  });
+}
 
 function generateId() {
   const arr = new Uint8Array(4);
