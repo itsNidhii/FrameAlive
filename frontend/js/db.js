@@ -201,13 +201,15 @@ const DB = {
       console.warn('IndexedDB read notice:', err);
     }
 
-    // Fallback: merge with localStorage cache
+    // Fallback: merge with localStorage cache (only records that strictly belong to this user)
     try {
       const userStorageKey = `picsalive_memories_${userId}`;
       const localList = JSON.parse(localStorage.getItem(userStorageKey) || '[]');
-      localList.forEach(m => {
-        if (!localMap.has(m.id)) localMap.set(m.id, m);
-      });
+      localList
+        .filter(m => m.userId === userId)   // strict: skip unowned old records
+        .forEach(m => {
+          if (!localMap.has(m.id)) localMap.set(m.id, m);
+        });
     } catch (_) {}
 
     // 2. Fetch from Cloud Firestore (source of truth across devices)
@@ -279,7 +281,9 @@ const DB = {
     });
 
     // Merge local memories (which contain original local blobs on the creation device)
+    // STRICT: only include local memories that belong to this userId
     localMap.forEach((lm, id) => {
+      if ((lm.userId || '') !== userId) return;   // never leak unowned old memories
       if (merged.has(id)) {
         const remote = merged.get(id);
         merged.set(id, {
@@ -293,6 +297,11 @@ const DB = {
       } else {
         merged.set(id, lm);
       }
+    });
+
+    // Final safety pass: remove anything not owned by this user
+    merged.forEach((m, id) => {
+      if ((m.userId || '') !== userId) merged.delete(id);
     });
 
     const result = Array.from(merged.values());

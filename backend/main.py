@@ -272,13 +272,23 @@ def create_experience(
 
 @app.api_route("/api/user-memories", methods=["GET", "HEAD"])
 def list_user_memories(user_id: str = ""):
-    """List all memories specifically belonging to a user ID."""
+    """List all memories specifically belonging to a user ID.
+
+    Rules:
+      - If user_id is supplied: return ONLY memories whose user_id matches exactly.
+        Old unowned memories (user_id = '' or absent) are NOT returned – they were
+        created before authentication existed and belong to no one.
+      - If user_id is not supplied: return nothing (never expose all memories publicly).
+    """
+    if not user_id:
+        return {"memories": []}
+
     raw = get_all_experiences()
     result = []
     for exp in raw:
-        exp_uid = exp.get("user_id", "")
-        # If user_id is provided, match by user_id
-        if user_id and exp_uid and exp_uid != user_id:
+        exp_uid = (exp.get("user_id") or "").strip()
+        # Only include memories that explicitly belong to this user
+        if exp_uid != user_id:
             continue
         exp_id = exp["id"]
         base = f"/files/{exp_id}"
@@ -290,7 +300,7 @@ def list_user_memories(user_id: str = ""):
             "targetUrl": f"{base}/target.mind",
             "photoW": exp.get("photo_w", 800),
             "photoH": exp.get("photo_h", 600),
-            "userId": exp_uid or user_id,
+            "userId": exp_uid,
             "created": exp.get("created", 0),
             "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(exp.get("created", 0)))
         })
