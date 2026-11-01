@@ -19,11 +19,17 @@ const Auth = {
 
     if (isFirebaseConfigured() && auth) {
       const cred = await auth.createUserWithEmailAndPassword(email, password);
-      await db.collection('users').doc(cred.user.uid).set({
-        email: cred.user.email,
-        displayName: cred.user.displayName || email.split('@')[0],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      try {
+        if (typeof db !== 'undefined' && db) {
+          await db.collection('users').doc(cred.user.uid).set({
+            email: cred.user.email,
+            displayName: cred.user.displayName || email.split('@')[0],
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+      } catch (err) {
+        console.warn('Firestore user profile notice (non-fatal):', err.message);
+      }
       return cred.user;
     } else {
       // Local demo mode storage
@@ -80,12 +86,18 @@ const Auth = {
     if (isFirebaseConfigured() && auth) {
       const provider = new firebase.auth.GoogleAuthProvider();
       const cred = await auth.signInWithPopup(provider);
-      await db.collection('users').doc(cred.user.uid).set({
-        email: cred.user.email,
-        displayName: cred.user.displayName || cred.user.email.split('@')[0],
-        photoURL: cred.user.photoURL || '',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      try {
+        if (typeof db !== 'undefined' && db) {
+          await db.collection('users').doc(cred.user.uid).set({
+            email: cred.user.email,
+            displayName: cred.user.displayName || cred.user.email.split('@')[0],
+            photoURL: cred.user.photoURL || '',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+      } catch (err) {
+        console.warn('Firestore Google profile notice (non-fatal):', err.message);
+      }
       return cred.user;
     } else {
       // Demo Google account sign-in

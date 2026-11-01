@@ -88,7 +88,7 @@
     const alertBox = document.getElementById('authAlert');
 
     function showAlert(msg) {
-      alertBox.textContent = msg;
+      alertBox.innerHTML = msg;
       alertBox.style.display = 'block';
     }
 
@@ -117,6 +117,19 @@
         await Auth.signUp(email, password);
         window.location.href = '/dashboard.html';
       } catch (err) {
+        if (err && (err.code === 'auth/email-already-in-use' || err.message?.includes('already exists'))) {
+          submitBtn.textContent = 'Account exists, signing in...';
+          try {
+            await Auth.signIn(email, password);
+            window.location.href = '/dashboard.html';
+            return;
+          } catch (signInErr) {
+            showAlert('An account with this email already exists. Please <a href="/signin.html?email=' + encodeURIComponent(email) + '" style="color:#C48B71; font-weight:600; text-decoration:underline;">click here to Sign In</a>.');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Account';
+            return;
+          }
+        }
         showAlert(Auth.getErrorMessage(err));
         submitBtn.disabled = false;
         submitBtn.textContent = 'Create Account';

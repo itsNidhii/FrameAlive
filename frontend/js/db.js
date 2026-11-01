@@ -1,21 +1,24 @@
 /**
- * PicsAlive – Database & Storage Utilities
+ * PicsAlive – Database & Cross-Device Cloud Sync Utilities
  *
  * Scoped per user: every memory belongs exclusively to its user UID.
+ * Supports multi-device sync across iPhone, Android, Mac, and Windows.
  *
- * Uses persistent browser IndexedDB + Firestore (free Spark plan compatible),
- * requiring NO credit card and NO Firebase Blaze plan upgrade.
- * Uploads succeed in 1-2 seconds with zero hanging.
+ * 3-Tier Storage Engine:
+ *  1. Local IndexedDB: Instant local caching for zero latency on current device.
+ *  2. FastAPI Backend: Persistent disk storage when running locally or on server.
+ *  3. Cloud Firestore: Real-time cloud synchronization (metadata + media chunks)
+ *     compatible with free Firebase Spark tier (requires NO Blaze upgrade).
  */
 
 const IDB_NAME = 'PicsAlive_DB';
-const IDB_VERSION = 1;
+const IDB_VERSION = 2;
 const IDB_STORE = 'memories';
 
 function openIDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, IDB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (e) => {
       const idb = req.result;
       if (!idb.objectStoreNames.contains(IDB_STORE)) {
         idb.createObjectStore(IDB_STORE, { keyPath: 'id' });
@@ -28,23 +31,23 @@ function openIDB() {
 
 const DB = {
   /**
-   * Create a new memory for the authenticated user.
+   * Create a new memory for the authenticated user and sync across devices.
    */
   async createMemory(userId, memoryData, photoBlob, videoFile, targetBuffer, onProgress) {
     if (!userId) throw new Error('User authentication required to register a photograph.');
     const memoryId = generateId();
 
-    onProgress && onProgress(20);
+    onProgress && onProgress(15);
 
     // 1. Prepare photo thumbnail (Data URL)
     const photoUrl = await blobToDataUrl(photoBlob);
-    onProgress && onProgress(45);
+    onProgress && onProgress(30);
 
-    // 2. Prepare target blob
+    // 2. Prepare target and video blobs
     const targetBlob = new Blob([targetBuffer], { type: 'application/octet-stream' });
     const targetUrl = URL.createObjectURL(targetBlob);
     const videoUrl = URL.createObjectURL(videoFile);
-    onProgress && onProgress(75);
+    onProgress && onProgress(45);
 
     const record = {
       id: memoryId,
@@ -53,12 +56,18 @@ const DB = {
       photoUrl: photoUrl,
       videoBlob: videoFile,
       targetBlob: targetBlob,
+      videoUrl: videoUrl,
+      targetUrl: targetUrl,
       photoW: memoryData.photoW || 800,
       photoH: memoryData.photoH || 600,
+      videoType: videoFile.type || 'video/mp4',
+      videoSize: videoFile.size || 0,
+      backendVideoUrl: `/files/${memoryId}/video.mp4`,
+      backendTargetUrl: `/files/${memoryId}/target.mind`,
       createdAt: new Date().toISOString()
     };
 
-    // 3. Save persistently to IndexedDB on device
+    // 3. Save persistently to IndexedDB on device (fast local cache)
     try {
       const idb = await openIDB();
       await new Promise((resolve, reject) => {
@@ -74,73 +83,245 @@ const DB = {
       existing.unshift({
         ...record,
         videoBlob: null,
-        targetBlob: null,
-        videoUrl: videoUrl,
-        targetUrl: targetUrl
+        targetBlob: null
       });
       localStorage.setItem(userStorageKey, JSON.stringify(existing));
     }
+    onProgress && onProgress(60);
 
-    // 4. Also sync metadata to Cloud Firestore if Firestore is active
+    // 4. Send to FastAPI backend API if available
+    let backendSuccess = false;
+    try {
+      const fd = new FormData();
+      fd.append('id', memoryId);
+      fd.append('user_id', userId);
+      fd.append('title', record.title);
+      fd.append('photo_w', String(record.photoW));
+      fd.append('photo_h', String(record.photoH));
+      fd.append('photo', photoBlob, 'photo.jpg');
+      fd.append('target', targetBlob, 'target.mind');
+      fd.append('video', videoFile, videoFile.name || 'video.mp4');
+
+      const res = await fetch('/api/create', { method: 'POST', body: fd });
+      if (res.ok) {
+        backendSuccess = true;
+      }
+    } catch (apiErr) {
+      console.warn('Backend API upload notice (running in serverless or offline mode):', apiErr.message);
+    }
+    onProgress && onProgress(75);
+
+    // 5. Sync metadata and media chunks to Cloud Firestore for cross-device sync
     if (typeof isFirebaseConfigured === 'function' && isFirebaseConfigured() && typeof db !== 'undefined' && db) {
       try {
-        await db.collection('users').doc(userId).collection('memories').doc(memoryId).set({
+        const firestoreDoc = {
+          id: memoryId,
+          userId: userId,
           title: record.title,
           photoUrl: record.photoUrl,
           photoW: record.photoW,
           photoH: record.photoH,
-          userId: userId,
+          backendVideoUrl: `/files/${memoryId}/video.mp4`,
+          backendTargetUrl: `/files/${memoryId}/target.mind`,
+          videoType: record.videoType,
+          videoSize: record.videoSize,
+          hasCloudMedia: true,
+          docType: 'memory',
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        // Write root memory document
+        await db.collection('users').doc(userId).collection('memories').doc(memoryId).set(firestoreDoc);
+
+        // Upload target.mind features to Firestore so other devices can track it
+        const targetBase64 = arrayBufferToBase64(targetBuffer);
+        await db.collection('users').doc(userId).collection('memories').doc(`${memoryId}_target`).set({
+          id: `${memoryId}_target`,
+          memoryId: memoryId,
+          docType: 'target',
+          data: targetBase64
         });
+
+        // Upload video chunks to Firestore for videos <= 15MB (serverless cloud sync)
+        if (videoFile.size > 0 && videoFile.size <= 15 * 1024 * 1024) {
+          const videoBuffer = await videoFile.arrayBuffer();
+          const chunkSize = 500 * 1024; // 500KB chunks -> ~666KB base64, comfortably under 1MB Firestore doc limit
+          const totalChunks = Math.ceil(videoBuffer.byteLength / chunkSize);
+          const chunkWrites = [];
+
+          for (let i = 0; i < totalChunks; i++) {
+            const slice = videoBuffer.slice(i * chunkSize, (i + 1) * chunkSize);
+            const sliceBase64 = arrayBufferToBase64(slice);
+            chunkWrites.push(
+              db.collection('users').doc(userId).collection('memories').doc(`${memoryId}_v${i}`).set({
+                id: `${memoryId}_v${i}`,
+                memoryId: memoryId,
+                docType: 'video_chunk',
+                chunkIdx: i,
+                totalChunks: totalChunks,
+                data: sliceBase64
+              })
+            );
+          }
+          await Promise.all(chunkWrites);
+        }
       } catch (e) {
-        // Firestore rules or offline notice, safe to continue
-        console.warn('Firestore sync notice:', e.message);
+        console.warn('Firestore cloud sync notice:', e.message);
       }
     }
 
     onProgress && onProgress(100);
-    return { ...record, videoUrl, targetUrl };
+    return record;
   },
 
   /**
-   * Get all memories strictly belonging to this user.
+   * Get all memories strictly belonging to this user, synchronized across all devices.
    */
   async getUserMemories(userId) {
     if (!userId) return [];
 
-    let memories = [];
+    const localMap = new Map();
 
-    // Read from persistent IndexedDB
+    // 1. Read from persistent local IndexedDB
     try {
       const idb = await openIDB();
-      memories = await new Promise((resolve, reject) => {
+      const localRecords = await new Promise((resolve) => {
         const tx = idb.transaction(IDB_STORE, 'readonly');
         const req = tx.objectStore(IDB_STORE).getAll();
-        req.onsuccess = () => {
-          const all = req.result || [];
-          const userMemories = all.filter(m => m.userId === userId);
-          // Revive Blob URLs
-          userMemories.forEach(m => {
-            if (m.videoBlob) m.videoUrl = URL.createObjectURL(m.videoBlob);
-            if (m.targetBlob) m.targetUrl = URL.createObjectURL(m.targetBlob);
-          });
-          resolve(userMemories.reverse());
-        };
-        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      });
+
+      localRecords.filter(m => m.userId === userId).forEach(m => {
+        if (m.videoBlob && !m.videoUrl) m.videoUrl = URL.createObjectURL(m.videoBlob);
+        if (m.targetBlob && !m.targetUrl) m.targetUrl = URL.createObjectURL(m.targetBlob);
+        localMap.set(m.id, m);
       });
     } catch (err) {
       console.warn('IndexedDB read notice:', err);
     }
 
-    // Fallback merge with localStorage
-    const userStorageKey = `picsalive_memories_${userId}`;
-    const localList = JSON.parse(localStorage.getItem(userStorageKey) || '[]');
-    const seenIds = new Set(memories.map(m => m.id));
-    localList.forEach(m => {
-      if (!seenIds.has(m.id)) memories.push(m);
+    // Fallback: merge with localStorage cache
+    try {
+      const userStorageKey = `picsalive_memories_${userId}`;
+      const localList = JSON.parse(localStorage.getItem(userStorageKey) || '[]');
+      localList.forEach(m => {
+        if (!localMap.has(m.id)) localMap.set(m.id, m);
+      });
+    } catch (_) {}
+
+    // 2. Fetch from Cloud Firestore (source of truth across devices)
+    const cloudMemories = [];
+    if (typeof isFirebaseConfigured === 'function' && isFirebaseConfigured() && typeof db !== 'undefined' && db) {
+      try {
+        const snap = await db.collection('users').doc(userId).collection('memories').get();
+        snap.forEach(doc => {
+          const data = doc.data();
+          // Filter out internal media chunk documents
+          if (doc.id.includes('_target') || doc.id.includes('_v') || data.docType === 'target' || data.docType === 'video_chunk') {
+            return;
+          }
+          let createdAtStr = new Date().toISOString();
+          if (data.createdAt) {
+            createdAtStr = data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt;
+          }
+          cloudMemories.push({
+            id: doc.id,
+            userId: data.userId || userId,
+            title: data.title || 'Untitled Memory',
+            photoUrl: data.photoUrl,
+            photoW: data.photoW || 800,
+            photoH: data.photoH || 600,
+            backendVideoUrl: data.backendVideoUrl || `/files/${doc.id}/video.mp4`,
+            backendTargetUrl: data.backendTargetUrl || `/files/${doc.id}/target.mind`,
+            videoType: data.videoType || 'video/mp4',
+            videoSize: data.videoSize || 0,
+            hasCloudMedia: data.hasCloudMedia || false,
+            createdAt: createdAtStr
+          });
+        });
+      } catch (fsErr) {
+        console.warn('Firestore cloud memories fetch notice:', fsErr.message);
+      }
+    }
+
+    // 3. Fetch from FastAPI backend API if available
+    const backendMemories = [];
+    try {
+      const res = await fetch(`/api/user-memories?user_id=${encodeURIComponent(userId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.memories) {
+          data.memories.forEach(m => backendMemories.push(m));
+        }
+      }
+    } catch (_) {}
+
+    // 4. Merge all sources
+    const merged = new Map();
+
+    // Add cloud memories first
+    cloudMemories.forEach(m => merged.set(m.id, m));
+
+    // Merge backend memories
+    backendMemories.forEach(m => {
+      if (merged.has(m.id)) {
+        const existing = merged.get(m.id);
+        merged.set(m.id, {
+          ...existing,
+          ...m,
+          videoUrl: m.videoUrl || existing.backendVideoUrl,
+          targetUrl: m.targetUrl || existing.backendTargetUrl
+        });
+      } else {
+        merged.set(m.id, m);
+      }
     });
 
-    return memories;
+    // Merge local memories (which contain original local blobs on the creation device)
+    localMap.forEach((lm, id) => {
+      if (merged.has(id)) {
+        const remote = merged.get(id);
+        merged.set(id, {
+          ...remote,
+          ...lm,
+          videoBlob: lm.videoBlob || remote.videoBlob,
+          targetBlob: lm.targetBlob || remote.targetBlob,
+          videoUrl: lm.videoUrl || remote.videoUrl || remote.backendVideoUrl,
+          targetUrl: lm.targetUrl || remote.targetUrl || remote.backendTargetUrl
+        });
+      } else {
+        merged.set(id, lm);
+      }
+    });
+
+    const result = Array.from(merged.values());
+    result.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+    // Opportunistically cache cloud memories into local IndexedDB for offline capability
+    try {
+      const idb = await openIDB();
+      const tx = idb.transaction(IDB_STORE, 'readwrite');
+      result.forEach(m => {
+        if (!localMap.has(m.id)) {
+          tx.objectStore(IDB_STORE).put({
+            id: m.id,
+            userId: m.userId,
+            title: m.title,
+            photoUrl: m.photoUrl,
+            photoW: m.photoW,
+            photoH: m.photoH,
+            backendVideoUrl: m.backendVideoUrl,
+            backendTargetUrl: m.backendTargetUrl,
+            videoType: m.videoType,
+            videoSize: m.videoSize,
+            createdAt: m.createdAt
+          });
+        }
+      });
+    } catch (_) {}
+
+    return result;
   },
 
   /**
@@ -153,11 +334,88 @@ const DB = {
   },
 
   /**
-   * Delete a memory owned by the user.
+   * Ensure that video URL is ready for playback on any device.
+   * If memory was created on another device, resolves from local blob, backend file, or Firestore chunks.
+   */
+  async getMemoryVideoUrl(userId, memory) {
+    if (!memory) return null;
+
+    // 1. Already have a working blob URL or object
+    if (memory.videoBlob) {
+      if (!memory.videoUrl) memory.videoUrl = URL.createObjectURL(memory.videoBlob);
+      return memory.videoUrl;
+    }
+    if (memory.videoUrl && memory.videoUrl.startsWith('blob:')) {
+      return memory.videoUrl;
+    }
+
+    // 2. Check if backend video URL is reachable
+    const candidates = [
+      memory.backendVideoUrl,
+      memory.videoUrl,
+      `/files/${memory.id}/video.mp4`
+    ].filter(Boolean);
+
+    for (const url of candidates) {
+      try {
+        const headRes = await fetch(url, { method: 'HEAD' });
+        if (headRes.ok) {
+          memory.videoUrl = url;
+          return url;
+        }
+      } catch (_) {}
+    }
+
+    // 3. Fallback: Reconstruct video from Cloud Firestore chunks
+    if (typeof isFirebaseConfigured === 'function' && isFirebaseConfigured() && typeof db !== 'undefined' && db && userId) {
+      try {
+        const snap = await db.collection('users').doc(userId).collection('memories')
+          .where('memoryId', '==', memory.id)
+          .where('docType', '==', 'video_chunk')
+          .get();
+
+        if (!snap.empty) {
+          const chunks = [];
+          snap.forEach(doc => {
+            const data = doc.data();
+            chunks.push(data);
+          });
+          chunks.sort((a, b) => a.chunkIdx - b.chunkIdx);
+
+          const byteArrays = chunks.map(c => new Uint8Array(base64ToArrayBuffer(c.data)));
+          const videoBlob = new Blob(byteArrays, { type: memory.videoType || 'video/mp4' });
+          const blobUrl = URL.createObjectURL(videoBlob);
+          memory.videoBlob = videoBlob;
+          memory.videoUrl = blobUrl;
+
+          // Cache reconstructed blob to local IndexedDB
+          try {
+            const idb = await openIDB();
+            const tx = idb.transaction(IDB_STORE, 'readwrite');
+            tx.objectStore(IDB_STORE).put({
+              ...memory,
+              videoBlob,
+              videoUrl: blobUrl
+            });
+          } catch (_) {}
+
+          return blobUrl;
+        }
+      } catch (fsErr) {
+        console.warn('Reconstructing video from Firestore notice:', fsErr);
+      }
+    }
+
+    return memory.videoUrl || `/files/${memory.id}/video.mp4`;
+  },
+
+  /**
+   * Delete a memory owned by the user across local device, Firestore, and backend.
    */
   async deleteMemory(userId, memoryId) {
     if (!userId || !memoryId) return;
 
+    // 1. Delete locally from IndexedDB
     try {
       const idb = await openIDB();
       await new Promise((resolve, reject) => {
@@ -168,20 +426,45 @@ const DB = {
       });
     } catch (_) {}
 
-    const userStorageKey = `picsalive_memories_${userId}`;
-    let memories = JSON.parse(localStorage.getItem(userStorageKey) || '[]');
-    memories = memories.filter(m => m.id !== memoryId);
-    localStorage.setItem(userStorageKey, JSON.stringify(memories));
+    // Delete from localStorage fallback
+    try {
+      const userStorageKey = `picsalive_memories_${userId}`;
+      let memories = JSON.parse(localStorage.getItem(userStorageKey) || '[]');
+      memories = memories.filter(m => m.id !== memoryId);
+      localStorage.setItem(userStorageKey, JSON.stringify(memories));
+    } catch (_) {}
 
+    // 2. Delete remotely from Cloud Firestore
     if (typeof isFirebaseConfigured === 'function' && isFirebaseConfigured() && typeof db !== 'undefined' && db) {
       try {
-        await db.collection('users').doc(userId).collection('memories').doc(memoryId).delete();
-      } catch (_) {}
+        const memRef = db.collection('users').doc(userId).collection('memories');
+        // Delete main doc
+        await memRef.doc(memoryId).delete().catch(() => {});
+        // Delete target doc
+        await memRef.doc(`${memoryId}_target`).delete().catch(() => {});
+
+        // Delete any video chunk docs
+        const chunkSnap = await memRef.where('memoryId', '==', memoryId).get().catch(() => null);
+        if (chunkSnap && !chunkSnap.empty) {
+          const batch = db.batch();
+          chunkSnap.forEach(doc => batch.delete(doc.ref));
+          await batch.commit().catch(() => {});
+        }
+      } catch (e) {
+        console.warn('Firestore delete notice:', e);
+      }
     }
+
+    // 3. Delete from FastAPI backend
+    try {
+      await fetch(`/api/user-memories/${encodeURIComponent(memoryId)}?user_id=${encodeURIComponent(userId)}`, {
+        method: 'DELETE'
+      });
+    } catch (_) {}
   },
 
   /**
-   * Combine all targets for the user's memories into a single MindAR target file.
+   * Combine all targets for the user's memories into a single MindAR target file for AR scanning.
    */
   async getUserTargets(userId) {
     const memories = await this.getUserMemories(userId);
@@ -197,11 +480,31 @@ const DB = {
       const mem = memories[i];
       try {
         let buffer = null;
+
+        // 1. Memory has a local targetBlob
         if (mem.targetBlob) {
           buffer = await mem.targetBlob.arrayBuffer();
-        } else if (mem.targetUrl) {
-          const res = await fetch(mem.targetUrl);
-          if (res.ok) buffer = await res.arrayBuffer();
+        }
+        // 2. Memory has a targetUrl (backend or remote)
+        else if (mem.targetUrl || mem.backendTargetUrl) {
+          const url = mem.targetUrl || mem.backendTargetUrl;
+          try {
+            const res = await fetch(url);
+            if (res.ok) buffer = await res.arrayBuffer();
+          } catch (_) {}
+        }
+
+        // 3. Fallback: Fetch target from Firestore if not yet cached on this device
+        if (!buffer && typeof isFirebaseConfigured === 'function' && isFirebaseConfigured() && typeof db !== 'undefined' && db && userId) {
+          try {
+            const targetDoc = await db.collection('users').doc(userId).collection('memories').doc(`${mem.id}_target`).get();
+            if (targetDoc.exists && targetDoc.data().data) {
+              buffer = base64ToArrayBuffer(targetDoc.data().data);
+              // Cache to local memory record
+              mem.targetBlob = new Blob([buffer], { type: 'application/octet-stream' });
+              mem.targetUrl = URL.createObjectURL(mem.targetBlob);
+            }
+          } catch (_) {}
         }
 
         if (!buffer) continue;
@@ -259,4 +562,26 @@ function blobToDataUrl(blob) {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  const chunkSize = 8192;
+  for (let i = 0; i < len; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
+    binary += String.fromCharCode.apply(null, chunk);
+  }
+  return btoa(binary);
+}
+
+function base64ToArrayBuffer(base64) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
 }

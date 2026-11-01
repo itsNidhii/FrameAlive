@@ -81,8 +81,16 @@
     const googleBtn = document.getElementById('googleSignInBtn');
     const alertBox = document.getElementById('authAlert');
 
+    // Prefill email from query parameter if provided
+    const urlParams = new URLSearchParams(window.location.search);
+    const prefillEmail = urlParams.get('email');
+    if (prefillEmail) {
+      emailInput.value = prefillEmail;
+      setTimeout(() => passwordInput.focus(), 100);
+    }
+
     function showAlert(msg) {
-      alertBox.textContent = msg;
+      alertBox.innerHTML = msg;
       alertBox.style.display = 'block';
     }
 
@@ -108,7 +116,11 @@
         await Auth.signIn(email, password);
         window.location.href = '/dashboard.html';
       } catch (err) {
-        showAlert(Auth.getErrorMessage(err));
+        if (err && (err.code === 'auth/user-not-found' || err.message?.includes('not found') || err.message?.includes('No account'))) {
+          showAlert('No account found for this email. Would you like to <a href="/signup.html?email=' + encodeURIComponent(email) + '" style="color:#C48B71; font-weight:600; text-decoration:underline;">create an account</a>?');
+        } else {
+          showAlert(Auth.getErrorMessage(err));
+        }
         submitBtn.disabled = false;
         submitBtn.textContent = 'Sign In';
       }

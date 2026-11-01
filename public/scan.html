@@ -370,7 +370,7 @@
     }
 
     // 3. Photograph Recognized: Transition from Camera to Immersive Playback
-    function onPhotographRecognized(memory) {
+    async function onPhotographRecognized(memory) {
       isRecognizing = false;
 
       // Visual feedback on reticle
@@ -380,6 +380,14 @@
       // Short loading animation (1.2 seconds) with cute dots
       loadingMemoryTitle.textContent = `"${memory.title || 'Memory'}"`;
       loadingOverlay.style.display = 'flex';
+
+      try {
+        const uid = currentUser ? currentUser.uid : (memory.userId || '');
+        const videoUrl = await DB.getMemoryVideoUrl(uid, memory);
+        if (videoUrl) memory.videoUrl = videoUrl;
+      } catch (e) {
+        console.warn('Video resolution notice in scanner:', e);
+      }
 
       setTimeout(() => {
         loadingOverlay.style.display = 'none';

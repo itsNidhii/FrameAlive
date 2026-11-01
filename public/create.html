@@ -202,8 +202,8 @@
         });
         const targetBuffer = await compiler.exportData();
 
-        // Step 3: Save to user's private library
-        setStatus('Step 3 of 3: Securely saving to your personal account...', 70);
+        // Step 3: Save and synchronize memory to personal account
+        setStatus('Step 3 of 3: Securely saving and syncing to your account...', 70);
         await DB.createMemory(
           currentUser.uid,
           { title, photoW: w, photoH: h },
@@ -211,21 +211,9 @@
           videoFile,
           targetBuffer,
           (pct) => {
-            setStatus(`Step 3 of 3: Uploading files (${pct}%)...`, 70 + Math.round(pct * 0.3));
+            setStatus(`Step 3 of 3: Syncing memory (${pct}%)...`, 70 + Math.round(pct * 0.3));
           }
         );
-
-        // Optional: also send to local FastAPI backend if running locally
-        try {
-          const fd = new FormData();
-          fd.append('title', title);
-          fd.append('photo_w', String(w));
-          fd.append('photo_h', String(h));
-          fd.append('photo', blob, 'photo.jpg');
-          fd.append('target', new Blob([targetBuffer]), 'target.mind');
-          fd.append('video', videoFile, videoFile.name);
-          fetch('/api/create', { method: 'POST', body: fd }).catch(() => {});
-        } catch (_) {}
 
         progressWrap.style.display = 'none';
         form.style.display = 'none';

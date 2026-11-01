@@ -163,6 +163,9 @@
                 <button class="btn btn--secondary btn--sm preview-btn" style="flex:1; padding:8px 12px; font-size:12px;">
                   ▶ Play Video
                 </button>
+                <a class="btn btn--primary btn--sm" href="/scan.html" style="padding:8px 12px; font-size:12px; display:inline-flex; align-items:center; gap:4px; text-decoration:none;" title="Scan photograph in AR">
+                  📷 Scan
+                </a>
                 <button class="btn btn--ghost btn--sm delete-btn" title="Delete memory" style="color:var(--error); padding:8px 10px;">
                   🗑
                 </button>
@@ -171,8 +174,21 @@
           `;
 
           // Video preview button
-          card.querySelector('.preview-btn').addEventListener('click', () => {
-            openVideoModal(mem.videoUrl, mem.title);
+          card.querySelector('.preview-btn').addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            const orig = btn.textContent;
+            btn.textContent = 'Loading...';
+            btn.disabled = true;
+            try {
+              const videoUrl = await DB.getMemoryVideoUrl(currentUser.uid, mem);
+              openVideoModal(videoUrl, mem.title);
+            } catch (err) {
+              console.error('Failed to load video:', err);
+              openVideoModal(mem.videoUrl || `/files/${mem.id}/video.mp4`, mem.title);
+            } finally {
+              btn.textContent = orig;
+              btn.disabled = false;
+            }
           });
 
           // Delete button

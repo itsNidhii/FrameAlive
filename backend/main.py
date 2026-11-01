@@ -191,6 +191,8 @@ def create_experience(
     photo: UploadFile = File(...),
     video: UploadFile = File(...),
     target: UploadFile = File(...),
+    user_id: str = Form(default=""),
+    id: str = Form(default=""),
     x_passcode: str = Header(default=""),
 ):
     if CREATE_PASSCODE and not secrets.compare_digest(x_passcode, CREATE_PASSCODE):
@@ -208,7 +210,7 @@ def create_experience(
     if not (target.filename or "").lower().endswith(".mind"):
         raise HTTPException(400, "Target must be a .mind file")
 
-    exp_id = uuid.uuid4().hex[:8]
+    exp_id = id if (id and ID_RE.match(id)) else uuid.uuid4().hex[:8]
     folder = DATA_DIR / exp_id
     try:
         folder.mkdir(parents=True, exist_ok=True)
@@ -240,6 +242,7 @@ def create_experience(
             "video": video_name,
             "photo_w": photo_w,
             "photo_h": photo_h,
+            "user_id": user_id.strip(),
             "created": int(time.time()),
         }
         (folder / "meta.json").write_text(json.dumps(meta))
@@ -252,7 +255,75 @@ def create_experience(
         shutil.rmtree(folder, ignore_errors=True)   # never leave half-made folders
         raise
 
-    return {"id": exp_id, "scan_url": f"/s/{exp_id}"}
+    base = f"/files/{exp_id}"
+    return {
+        "id": exp_id,
+        "title": meta["title"],
+        "photo_url": f"{base}/{photo_name}",
+        "video_url": f"{base}/{video_name}",
+        "target_url": f"{base}/target.mind",
+        "photo_w": photo_w,
+        "photo_h": photo_h,
+        "user_id": user_id,
+        "created": meta["created"],
+        "scan_url": f"/s/{exp_id}"
+    }
+
+
+@app.api_route("/api/user-memories", methods=["GET", "HEAD"])
+def list_user_memories(user_id: str = ""):
+    """List all memories specifically belonging to a user ID."""
+    raw = get_all_experiences()
+    result = []
+    for exp in raw:
+        exp_uid = exp.get("user_id", "")
+        # If user_id is provided, match by user_id
+        if user_id and exp_uid and exp_uid != user_id:
+            continue
+        exp_id = exp["id"]
+        base = f"/files/{exp_id}"
+        result.append({
+            "id": exp_id,
+            "title": exp.get("title", "Untitled"),
+            "photoUrl": f"{base}/{exp['photo']}",
+            "videoUrl": f"{base}/{exp['video']}",
+            "targetUrl": f"{base}/target.mind",
+            "photoW": exp.get("photo_w", 800),
+            "photoH": exp.get("photo_h", 600),
+            "userId": exp_uid or user_id,
+            "created": exp.get("created", 0),
+            "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(exp.get("created", 0)))
+        })
+    return {"memories": result}
+
+
+@app.delete("/api/user-memories/{exp_id}")
+def delete_user_memory(exp_id: str, user_id: str = ""):
+    """Delete a memory folder if it belongs to this user."""
+    if not ID_RE.match(exp_id):
+        raise HTTPException(404, "Not found")
+    deleted = False
+    for d in [DATA_DIR, TMP_DATA_DIR]:
+        folder = d / exp_id
+        if folder.exists() and folder.is_dir():
+            meta_file = folder / "meta.json"
+            if meta_file.exists():
+                try:
+                    meta = json.loads(meta_file.read_text())
+                    if user_id and meta.get("user_id") and meta.get("user_id") != user_id:
+                        raise HTTPException(403, "Not authorized to delete this memory")
+                except HTTPException:
+                    raise
+                except Exception:
+                    pass
+            shutil.rmtree(folder, ignore_errors=True)
+            deleted = True
+
+    try:
+        build_all_targets()
+    except Exception:
+        pass
+    return {"success": deleted}
 
 
 @app.api_route("/api/experiences", methods=["GET", "HEAD"])
