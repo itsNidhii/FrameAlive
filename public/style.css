@@ -1552,6 +1552,8 @@ h1, h2, h3, h4 {
 .mb-4 { margin-bottom: 16px; }
 
 /* ── Responsive ────────────────────────────────────────────── */
+
+/* ── Tablet (≤1024px) ──────────────────────────────────────── */
 @media (max-width: 1024px) {
   :root { --section-pad: 72px; }
 
@@ -1583,37 +1585,237 @@ h1, h2, h3, h4 {
   }
 }
 
+/* ── Mobile (≤768px) ───────────────────────────────────────── */
 @media (max-width: 768px) {
-  :root { --section-pad: 56px; --nav-height: 64px; }
+  :root {
+    --section-pad: 56px;
+    --nav-height: 60px;
+  }
 
+  /* ── Navigation ── */
   .nav__links { display: none; }
+  .nav__actions { display: none; }   /* hide desktop sign-in/CTA — shown in hamburger menu instead */
   .nav__toggle { display: block; }
 
-  .hero { padding-top: calc(var(--nav-height) + 32px); }
-  .hero__title { font-size: 32px; }
-  .hero__buttons { gap: 12px; }
-  .hero__buttons .btn { width: 100%; }
+  .nav__inner { padding: 0 16px; }
+
+  /* Mobile nav menu full-screen */
+  .nav__mobile {
+    padding: 24px 20px;
+    gap: 4px;
+    overflow-y: auto;
+  }
+  .nav__mobile a {
+    padding: 16px 0;
+    font-size: 17px;
+  }
+
+  /* ── Container ── */
+  .container { padding: 0 16px; }
+
+  /* ── Hero ── */
+  .hero {
+    padding-top: calc(var(--nav-height) + 28px);
+    padding-bottom: 48px;
+  }
+  .hero__title { font-size: 28px; line-height: 1.15; }
+  .hero__subtitle { font-size: 15px; margin-bottom: 28px; }
+  .hero__buttons { gap: 10px; flex-direction: column; }
+  .hero__buttons .btn { width: 100%; text-align: center; justify-content: center; }
   .hero__tagline { display: none; }
+  .hero__image img { max-width: 100%; border-radius: var(--radius-lg); }
 
-  .memories__grid { grid-template-columns: repeat(2, 1fr); }
+  /* ── Sections ── */
+  .section { padding: 48px 0; }
 
-  .steps { grid-template-columns: 1fr; max-width: 300px; }
+  /* ── Memory Showcase ── */
+  .memories__grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .memories__title { font-size: 24px; margin-bottom: 28px; }
+  .memory-card__title { font-size: 13px; }
+  .memory-card__desc { font-size: 12px; }
 
+  /* ── Steps ── */
+  .steps { grid-template-columns: 1fr; max-width: 300px; gap: 24px; }
+
+  /* ── Demo / Emotional ── */
+  .demo__title,
+  .emotional__title { font-size: 22px; }
+  .demo__desc,
+  .emotional__desc { font-size: 14px; }
+
+  /* ── CTA Section ── */
+  .cta-section { padding: 60px 0; }
   .cta-section__content { max-width: 100%; }
   .cta-section__image { display: none; }
+  .cta-section__title { font-size: 28px; }
 
-  .footer__inner { flex-direction: column; text-align: center; }
-  .footer__links { justify-content: center; }
+  /* ── Footer ── */
+  .footer__inner { flex-direction: column; text-align: center; gap: 12px; }
+  .footer__links { justify-content: center; flex-wrap: wrap; gap: 16px; }
 
-  .auth-card { padding: 32px 24px; }
+  /* ── Auth pages (sign in / sign up) ── */
+  .auth-page {
+    align-items: flex-start;
+    padding: 20px 16px 40px;
+    min-height: 100vh;
+    min-height: 100dvh;  /* dynamic viewport height for mobile browsers */
+  }
+  .auth-card {
+    padding: 28px 20px;
+    border-radius: var(--radius-lg);
+    max-width: 100%;
+    box-shadow: none;        /* cleaner on mobile — no floating card shadow */
+    border: none;
+    background: transparent; /* full-screen feel */
+  }
+  .auth-card__logo a { font-size: 22px; }
+  .auth-card__title { font-size: 22px; }
+  .auth-card__subtitle { font-size: 13px; }
+  .google-btn { font-size: 14px; padding: 13px; }
+  .form-input { font-size: 16px; }  /* prevents iOS auto-zoom on focus */
 
-  .dashboard__grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  /* ── Dashboard ── */
+  .dashboard {
+    padding-top: calc(var(--nav-height) + 16px);
+    padding-bottom: 32px;
+  }
+  .dashboard__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .dashboard__title { font-size: 22px; }
+  .dashboard__actions { width: 100%; }
+  .dashboard__actions .btn { flex: 1; justify-content: center; }
+  .dashboard__grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
 
-  .create-card { padding: 28px 20px; }
+  /* Dashboard card actions — prevent overflow on small screens */
+  .dashboard-card__actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .dashboard-card__actions .btn {
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
+    padding: 7px 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Create page ── */
+  .create-page { padding-top: calc(var(--nav-height) + 16px); }
+  .create-card {
+    padding: 24px 16px;
+    border-radius: var(--radius-lg);
+    margin: 0;          /* stretch edge-to-edge with container padding */
+    max-width: 100%;
+  }
+  .create-card__title { font-size: 22px; }
+  .success-card { padding: 28px 16px; margin: 20px 0 0; }
+
+  /* ── Scan / AR page ── */
+  .scan-start { padding: 20px 16px; gap: 16px; }
+  .scan-start__logo { font-size: 22px; }
+  .scan-start__title { font-size: 20px; }
+  .scan-start__desc { font-size: 14px; }
+  .scan-start__btn { padding: 14px 28px; font-size: 16px; }
+  .scan-start__thumbs { gap: 8px; }
+  .scan-start__thumb { width: 48px; height: 48px; }
+
+  /* AR top bar ── */
+  .ar-topbar { padding: 10px 12px; }
+  .ar-topbar__btn { padding: 6px 10px; font-size: 12px; }
+  .ar-badge { font-size: 10px; padding: 3px 8px; }
+
+  /* Video overlay controls ── */
+  .video-overlay__controls { padding: 16px; gap: 10px; }
+  .video-overlay__btn { padding: 8px 14px; font-size: 13px; }
+  .video-overlay__topbar { padding: 12px 14px; }
+  .video-overlay__title { font-size: 13px; }
 }
 
+/* ── Small Mobile (≤480px) ─────────────────────────────────── */
 @media (max-width: 480px) {
-  .memories__grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-  .memory-card__title { font-size: 14px; }
-  .btn--lg { padding: 14px 28px; font-size: 15px; }
+  :root { --nav-height: 56px; }
+
+  .hero__title { font-size: 24px; }
+  .hero__subtitle { font-size: 14px; }
+
+  .memories__grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .memory-card__title { font-size: 13px; }
+
+  .btn--lg { padding: 14px 24px; font-size: 14px; }
+
+  /* Auth card: go truly edge-to-edge on small phones */
+  .auth-page { padding: 16px 12px 32px; }
+  .auth-card { padding: 24px 16px; }
+
+  .dashboard__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .dashboard-card__body { padding: 10px 12px; }
+  .dashboard-card__title { font-size: 13px; }
+  .dashboard-card__actions .btn { font-size: 10px; padding: 6px 6px; }
+
+  .create-card { padding: 20px 12px; }
+  .nav__inner { padding: 0 12px; }
+  .container { padding: 0 12px; }
 }
+
+/* ── Landscape Mobile (short height) ──────────────────────── */
+@media (max-height: 600px) and (orientation: landscape) {
+  .auth-page {
+    align-items: flex-start;
+    padding: 12px 16px;
+  }
+  .auth-card { padding: 20px 20px; }
+  .auth-card__logo { margin-bottom: 16px; }
+  .auth-card__subtitle { margin-bottom: 16px; }
+  .google-btn { padding: 10px; }
+  .form-group { margin-bottom: 12px; }
+  .form-input { padding: 10px 14px; }
+
+  .scan-start { gap: 12px; padding: 12px; }
+  .scan-start__thumbs { max-width: 80vw; }
+}
+
+/* ── Safe area insets (iPhone notch / home indicator) ──────── */
+@supports (padding: max(0px)) {
+  .nav {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .nav__inner {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .nav__mobile {
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-bottom: max(32px, env(safe-area-inset-bottom));
+  }
+  .scan-start {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+  .video-overlay__controls {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  .ar-topbar {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+  .auth-page {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(32px, env(safe-area-inset-bottom));
+  }
+}
+
